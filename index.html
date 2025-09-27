@@ -4,6 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>PM-QR Web (Tabuk Health)</title>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <style>
   :root{ --bg:#0b1220; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --ok:#10b981; --err:#ef4444; --info:#3b82f6; }
   body{background:#0b1220;color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0}
@@ -20,15 +21,25 @@
   .qr{width:200px;height:200px;background:#fff;display:flex;align-items:center;justify-content:center;border-radius:10px}
   a.link{color:#67e8f9;text-decoration:none;word-break:break-all}
   .tools{display:flex;gap:8px;margin:8px 0}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .user{color:#a7f3d0;font-size:.95rem}
   @media print{ .card, .notice{display:none !important} }
 </style>
 </head>
 <body>
-<div id="notice" class="notice n-info">جارِ الاتصال بـ Firebase…</div>
+<div id="notice" class="notice n-info">جارِ التحقق من الجلسة…</div>
 
-<div class="container">
+<div class="container" style="display:none" id="appRoot">
+  <div class="topbar">
+    <h1 style="margin:0">لوحة PM-QR</h1>
+    <div>
+      <span class="user" id="userInfo"></span>
+      <button class="btn secondary" id="signOutBtn">تسجيل الخروج</button>
+    </div>
+  </div>
+
   <div class="card">
-    <h1>إضافة جهاز جديد</h1>
+    <h2>إضافة جهاز جديد</h2>
     <div class="row">
       <input id="control" placeholder="Control Number (مثال: AS-0001)"/>
       <input id="site" placeholder="الموقع (مستشفى)"/>
@@ -38,29 +49,29 @@
       <input id="pm_date" type="date" placeholder="تاريخ الصيانة الوقائية"/>
     </div>
     <div class="row">
-      <button class="btn ok" onclick="addAsset()">حفظ</button>
-      <button class="btn secondary" onclick="clearForm()">مسح</button>
+      <button class="btn ok" id="saveBtn">حفظ</button>
+      <button class="btn secondary" id="clearBtn">مسح</button>
     </div>
     <div class="row" style="align-items:flex-start">
       <div class="qr"><img id="qrImg" alt="QR"/></div>
       <div>
         <a id="qrLink" class="link" target="_blank"></a>
         <div class="tools">
-          <button class="btn secondary" onclick="printQR('qrImg', document.getElementById('control').value)">طباعة الكيو آر</button>
+          <button class="btn secondary" id="printAddQRBtn">طباعة الكيو آر</button>
         </div>
       </div>
     </div>
   </div>
 
   <div class="card">
-    <h1>عرض جهاز</h1>
+    <h2>عرض جهاز</h2>
     <div class="row">
       <input id="viewId" placeholder="Control Number"/>
-      <button class="btn secondary" onclick="renderView()">عرض</button>
+      <button class="btn secondary" id="viewBtn">عرض</button>
     </div>
     <div id="viewData"></div>
     <div class="tools">
-      <button class="btn secondary" onclick="printQR('v_qr', document.getElementById('viewId').value)">طباعة الكيو آر</button>
+      <button class="btn secondary" id="printViewQRBtn">طباعة الكيو آر</button>
       <a class="btn ok" id="openSticker" target="_blank" rel="noopener">فتح صفحة الاستيكر</a>
     </div>
   </div>
@@ -68,7 +79,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 <script>
-// إشعارات + التقاط أخطاء عامة
+// إشعارات عامة + التقاط أخطاء
 function notify(msg, type='info'){
   const n = document.getElementById('notice');
   n.textContent = msg;
@@ -81,17 +92,14 @@ function toISO(d){ return new Date(d).toISOString().slice(0,10); }
 function addMonths(dateObj, n){ const d = new Date(dateObj); d.setMonth(d.getMonth()+n); return d; }
 function calcNext(pmDate){ if(!pmDate) return ""; return toISO(addMonths(new Date(pmDate),6)); }
 function safeId(control){ return (control||'').trim().replace(/[\/#?\s]/g,'-'); }
-
 // اربط QR بصفحة الاستيكر على مسار موقعك
 function buildLink(control){
   return 'https://bioenga7md3del.github.io/PM-Qr-Tabuk/sticker.html#view/' + encodeURIComponent(control);
 }
-
 function makeQR(el, text){
   try { QRCode.toDataURL(text, {width:200, margin:1}).then(url=>{ el.src=url; }).catch(()=>{ el.src='https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl='+encodeURIComponent(text); }); }
   catch { el.src='https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl='+encodeURIComponent(text); }
 }
-
 // طباعة QR فقط
 function printQR(imgId, controlText){
   const img = document.getElementById(imgId);
@@ -106,12 +114,19 @@ function printQR(imgId, controlText){
   </body></html>`);
   w.document.close(); w.focus(); w.print(); setTimeout(()=>w.close(), 300);
 }
+// فورم
+function clearForm(){
+  ['control','site','dept','loc','tech','pm_date'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('qrImg').src=''; document.getElementById('qrLink').textContent=''; document.getElementById('qrLink').href='';
+}
 </script>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
+/* Firebase Config */
 const firebaseConfig = {
   apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
   authDomain: "pmqrtabuk.firebaseapp.com",
@@ -120,53 +135,77 @@ const firebaseConfig = {
   messagingSenderId: "305570616285",
   appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
 };
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
-try{
-  const app = initializeApp(firebaseConfig);
-  const db  = getFirestore(app);
-  notify('تم الاتصال بـ Firebase ✅','ok');
+let db; // هنهيئه بعد التأكد من المستخدم
 
-  window.clearForm = function(){
-    ['control','site','dept','loc','tech','pm_date'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-    document.getElementById('qrImg').src=''; document.getElementById('qrLink').textContent=''; document.getElementById('qrLink').href='';
-  };
+onAuthStateChanged(auth, async (user)=>{
+  if(!user){
+    notify('لم يتم تسجيل الدخول — تحويل إلى صفحة الدخول…', 'n-info');
+    location.href = 'login.html';
+    return;
+  }
+  // مستخدم موجود → فعّل الصفحة
+  document.getElementById('userInfo').textContent = user.email || '(مستخدم)';
+  document.getElementById('appRoot').style.display = 'block';
+  notify('تم تسجيل الدخول ✅ وجارِ الاتصال بـ Firebase…', 'ok');
 
-  window.addAsset = async function(){
+  try{
+    db = (await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js')).getFirestore(app);
+    notify('تم الاتصال بـ Firebase ✅', 'ok');
+  }catch(e){
+    notify('فشل تهيئة Firestore: ' + e.message, 'error');
+    return;
+  }
+
+  // أزرار عامة
+  document.getElementById('signOutBtn').onclick = ()=> signOut(auth).then(()=> location.href='login.html');
+
+  // إضافة جهاز
+  document.getElementById('saveBtn').onclick = async ()=>{
     const control = document.getElementById('control').value.trim();
     const site = document.getElementById('site').value.trim();
     const dept = document.getElementById('dept').value.trim();
-    const loc = document.getElementById('loc').value.trim();
+    const loc  = document.getElementById('loc').value.trim();
     const tech = document.getElementById('tech').value.trim();
     const pm   = document.getElementById('pm_date').value;
     if(!control || !pm){ notify('من فضلك أدخل الكنترول وتاريخ الصيانة الوقائية', 'error'); return; }
 
-    const docId = safeId(control);
-    const link  = buildLink(control);
+    const docId = (await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js')).doc(db,'assets', (control||'').replace(/[\/#?\s]/g,'-'));
+    const link  = 'https://bioenga7md3del.github.io/PM-Qr-Tabuk/sticker.html#view/' + encodeURIComponent(control);
     makeQR(document.getElementById('qrImg'), link);
     document.getElementById('qrLink').textContent = link;
     document.getElementById('qrLink').href = link;
 
     try{
-      const next = calcNext(pm);
-      await setDoc(doc(db,'assets', docId), { control, site, department:dept, location:loc, tech, pm_date: pm, next_date: next, updatedAt: serverTimestamp() });
+      const next = (function(pm){ if(!pm) return ""; const d=new Date(pm); d.setMonth(d.getMonth()+6); return d.toISOString().slice(0,10); })(pm);
+      const { setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js');
+      await setDoc(docId, { control, site, department:dept, location:loc, tech, pm_date: pm, next_date: next, updatedAt: serverTimestamp() });
       notify('تم الحفظ وتوليد QR بنجاح ✅', 'ok');
     }catch(e){ notify('فشل الحفظ: ' + e.message, 'error'); }
   };
 
-  window.renderView = async function(){
+  // مسح
+  document.getElementById('clearBtn').onclick = ()=> clearForm();
+  // طباعة QR من قسم الإضافة
+  document.getElementById('printAddQRBtn').onclick = ()=> printQR('qrImg', document.getElementById('control').value);
+
+  // عرض جهاز
+  document.getElementById('viewBtn').onclick = async ()=>{
     const idInput = document.getElementById('viewId').value.trim();
     if(!idInput){ notify('اكتب الكنترول نمبر للعرض', 'error'); return; }
     try{
-      const primaryId = safeId(idInput);
+      const { doc, getDoc, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js');
+      const primaryId = (idInput||'').replace(/[\/#?\s]/g,'-');
       let snap = await getDoc(doc(db,'assets', primaryId));
       if(!snap.exists()){
-        const {collection, query, where, getDocs} = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js');
         const qs = await getDocs(query(collection(db,'assets'), where('control','==', idInput)));
         snap = qs.docs[0];
       }
       if(!snap || !snap.exists()){ notify('الجهاز غير موجود', 'error'); document.getElementById('viewData').innerHTML=''; return; }
       const d = snap.data();
-      const link = buildLink(d.control || idInput);
+      const link = 'https://bioenga7md3del.github.io/PM-Qr-Tabuk/sticker.html#view/' + encodeURIComponent(d.control || idInput);
       document.getElementById('viewData').innerHTML = `
         <div>
           <div>Control: <b>${d.control||idInput}</b></div>
@@ -185,9 +224,10 @@ try{
       notify('تم تحميل بيانات الجهاز ✅', 'ok');
     }catch(e){ notify('فشل العرض: ' + e.message, 'error'); }
   };
-}catch(e){
-  notify('فشل تهيئة Firebase: ' + e.message, 'error');
-}
+
+  // طباعة QR من قسم العرض
+  document.getElementById('printViewQRBtn').onclick = ()=> printQR('v_qr', document.getElementById('viewId').value);
+});
 </script>
 </body>
 </html>
