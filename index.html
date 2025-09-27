@@ -16,7 +16,6 @@
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
-  <!-- Notice bar -->
   <div id="notice" class="no-print text-center py-2 font-bold bg-sky-900/40 border-b border-sky-700">جارِ التحقق من الجلسة…</div>
 
   <!-- Topbar -->
@@ -37,22 +36,10 @@
   <main class="max-w-7xl mx-auto px-4 py-6">
     <!-- KPI Cards -->
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-slate-400">إجمالي الأجهزة</div>
-        <div id="kpi_total" class="text-3xl font-extrabold">—</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-slate-400">المستحقة هذا الشهر</div>
-        <div id="kpi_due" class="text-3xl font-extrabold">—</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-slate-400">متأخرة</div>
-        <div id="kpi_over" class="text-3xl font-extrabold">—</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-slate-400">خلال 30 يومًا</div>
-        <div id="kpi_30" class="text-3xl font-extrabold">—</div>
-      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4"><div class="text-slate-400">إجمالي الأجهزة</div><div id="kpi_total" class="text-3xl font-extrabold">—</div></div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4"><div class="text-slate-400">المستحقة هذا الشهر</div><div id="kpi_due" class="text-3xl font-extrabold">—</div></div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4"><div class="text-slate-400">متأخرة</div><div id="kpi_over" class="text-3xl font-extrabold">—</div></div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4"><div class="text-slate-400">خلال 30 يومًا</div><div id="kpi_30" class="text-3xl font-extrabold">—</div></div>
     </section>
 
     <!-- Filters -->
@@ -94,232 +81,135 @@
           <tbody id="tbody"></tbody>
         </table>
       </div>
-      <!-- Pagination -->
       <div class="flex items-center justify-between p-3 border-t border-slate-800 no-print">
         <div id="pageInfo" class="text-slate-400 text-sm">—</div>
-        <div class="flex gap-2">
-          <button id="prev" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700">السابق</button>
-          <button id="next" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700">التالي</button>
-        </div>
+        <div class="flex gap-2"><button id="prev" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700">السابق</button><button id="next" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700">التالي</button></div>
       </div>
     </section>
   </main>
 
-  <!-- Add/Edit Modal -->
+  <!-- Add/Edit Modal (تقدر تعيد استخدامه) -->
   <div id="modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center no-print">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-[95vw] max-w-2xl">
-      <div class="flex items-center justify-between mb-4">
-        <div class="text-lg font-extrabold">إضافة جهاز</div>
-        <button id="closeModal" class="text-slate-300 hover:text-white">✕</button>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <input id="m_control" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800" placeholder="Control Number"/>
-        <input id="m_site" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800" placeholder="Site"/>
-        <input id="m_dept" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800" placeholder="Department"/>
-        <input id="m_loc" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800" placeholder="Location (اختياري)"/>
-        <input id="m_tech" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800" placeholder="Technician"/>
-        <input id="m_pm" type="date" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800" placeholder="PM Date"/>
+    <div class="bg-white text-black rounded-lg shadow-xl w-full max-w-md p-6">
+      <h2 class="text-lg font-bold mb-4" id="modalTitle">إضافة / تعديل جهاز</h2>
+      <div class="space-y-3">
+        <input id="m_control" placeholder="Control Number" class="w-full px-3 py-2 border rounded"/>
+        <input id="m_site" placeholder="الموقع" class="w-full px-3 py-2 border rounded"/>
+        <input id="m_dept" placeholder="القسم" class="w-full px-3 py-2 border rounded"/>
+        <input id="m_tech" placeholder="الفني" class="w-full px-3 py-2 border rounded"/>
+        <input id="m_pm" type="date" class="w-full px-3 py-2 border rounded"/>
       </div>
       <div class="flex justify-end gap-2 mt-4">
-        <button id="saveModal" class="px-4 py-2 rounded-lg bg-sky-500 text-sky-950 font-bold">حفظ</button>
-        <button id="cancelModal" class="px-4 py-2 rounded-lg bg-slate-800 border border-slate-700">إلغاء</button>
+        <button onclick="closeModal()" class="px-3 py-2 bg-gray-300 rounded">إلغاء</button>
+        <button id="saveBtn" class="px-3 py-2 bg-sky-500 text-white rounded">حفظ</button>
       </div>
     </div>
   </div>
 
-  <!-- QR lib -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-
-  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
     import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js';
-    import { getFirestore, collection, getDocs, query, orderBy, setDoc, doc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
+    import { getFirestore, collection, getDocs, query, orderBy, setDoc, doc, serverTimestamp, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 
     const firebaseConfig = {
-      apiKey: 'AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM',
-      authDomain: 'pmqrtabuk.firebaseapp.com',
-      projectId: 'pmqrtabuk',
-      storageBucket: 'pmqrtabuk.firebasestorage.app',
-      messagingSenderId: '305570616285',
-      appId: '1:305570616285:web:4f6839fd08b8b5aa131c34'
+      apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
+      authDomain: "pmqrtabuk.firebaseapp.com",
+      projectId: "pmqrtabuk",
+      storageBucket: "pmqrtabuk.firebasestorage.app",
+      messagingSenderId: "305570616285",
+      appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
     };
-
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // Utils
     const $ = s => document.querySelector(s);
-    function notify(msg, type='info'){
-      const n = $('#notice');
-      n.textContent = msg;
-      n.className = 'no-print text-center py-2 font-bold ' + (type==='ok'?'bg-emerald-900/40 border-b border-emerald-700': type==='error'?'bg-red-900/40 border-b border-red-700':'bg-sky-900/40 border-b border-sky-700');
-    }
-    const toISO = d => new Date(d).toISOString().slice(0,10);
-    const addMonths = (d, m)=>{const x=new Date(d); x.setMonth(x.getMonth()+m); return x};
-    const calcNext = pm => pm? toISO(addMonths(pm,6)) : '';
-    const safeId = s => String(s||'').trim().replace(/[\\/?#\\s]+/g,'-');
-    const buildLink = control => 'https://bioenga7md3del.github.io/PM-Qr-Tabuk/sticker.html#view/' + encodeURIComponent(control);
-
-    function statusOf(nextISO){
-      if(!nextISO) return {key:'info',label:'غير محدد'};
-      const today = new Date();
-      const next = new Date(nextISO + 'T00:00:00');
-      const diff = (next - today) / (1000*60*60*24);
-      if(diff < 0) return {key:'over', label:'متأخر'};
-      if(diff <= 30) return {key:'soon', label:'خلال 30 يومًا'};
-      const inSameMonth = today.getFullYear()===next.getFullYear() && today.getMonth()===next.getMonth();
-      if(inSameMonth) return {key:'due', label:'مستحق هذا الشهر'};
-      return {key:'ok', label:'محدّث'};
-    }
-    function pillHtml(st){
-      const cls = st.key==='ok'?'pill-ok': st.key==='soon'?'pill-warn': st.key==='over'?'pill-bad':'pill-info';
-      return `<span class="status-pill ${cls}">${st.label}</span>`;
-    }
-
-    // Auth guard
-    onAuthStateChanged(auth, async user=>{
-      if(!user){ location.href='login.html'; return; }
-      $('#userEmail').textContent = user.email || '';
-      notify('تم تسجيل الدخول ✅','ok');
-      await loadData();
-    });
-
-    $('#signOutBtn').onclick = ()=> signOut(auth).then(()=> location.href='login.html');
-
-    // Modal controls
-    const modal = $('#modal');
-    const openModal = ()=>{ modal.classList.remove('hidden'); modal.classList.add('flex'); };
-    const closeModal = ()=>{ modal.classList.add('hidden'); modal.classList.remove('flex'); };
-    $('#addBtn').onclick = ()=>{ ['m_control','m_site','m_dept','m_loc','m_tech','m_pm'].forEach(id=>$('#'+id).value=''); openModal(); };
-    $('#closeModal').onclick = closeModal; $('#cancelModal').onclick = closeModal;
-
-    $('#saveModal').onclick = async ()=>{
-      const control = $('#m_control').value.trim();
-      const site = $('#m_site').value.trim();
-      const department = $('#m_dept').value.trim();
-      const location = $('#m_loc').value.trim();
-      const tech = $('#m_tech').value.trim();
-      const pm = $('#m_pm').value;
-      if(!control || !pm){ notify('أدخل الكنترول وتاريخ الصيانة', 'error'); return; }
-      const next = calcNext(new Date(pm));
-      try{
-        await setDoc(doc(db,'assets', safeId(control)), { control, site, department, location, tech, pm_date: pm, next_date: next, updatedAt: serverTimestamp() });
-        notify('تم الحفظ ✅','ok');
-        closeModal();
-        await loadData();
-      }catch(e){ notify('فشل الحفظ: '+e.message,'error'); }
+    const notify = (msg,type='info')=>{
+      const n=$('#notice');
+      n.textContent=msg;
+      n.className='no-print text-center py-2 font-bold '+(type==='ok'?'bg-emerald-600':type==='error'?'bg-red-600':'bg-sky-900/40');
     };
 
-    // Data + table
-    let all = []; // all assets
-    let filtered = [];
-    let page = 1; const pageSize = 25;
+    function addMonths(dateObj, n){ const d=new Date(dateObj); d.setMonth(d.getMonth()+n); return d; }
+    function toISO(d){ return new Date(d).toISOString().slice(0,10); }
 
-    function applyFilters(){
-      const q = $('#q').value.trim().toLowerCase();
-      const fs = $('#f_site').value; const fd = $('#f_dept').value; const fst = $('#f_status').value;
-      filtered = all.filter(x=>{
-        const matchQ = !q || (String(x.control||'').toLowerCase().includes(q) || String(x.tech||'').toLowerCase().includes(q));
-        const matchS = !fs || x.site===fs; const matchD = !fd || x.department===fd;
-        const st = statusOf(x.next_date||'');
-        const matchT = !fst || st.key===fst;
-        return matchQ && matchS && matchD && matchT;
-      });
-      page = 1; renderTable(); renderKPI();
-    }
-
-    function renderKPI(){
-      $('#kpi_total').textContent = all.length;
-      const today = new Date();
-      const ym = today.getFullYear()+''+today.getMonth();
-      let due=0, over=0, soon=0;
-      for(const x of all){
-        const st = statusOf(x.next_date||'');
-        if(st.key==='over') over++;
-        if(st.key==='soon') soon++;
-        if(x.next_date){ const d=new Date(x.next_date+'T00:00:00'); const ym2=d.getFullYear()+''+d.getMonth(); if(ym2===ym) due++; }
-      }
-      $('#kpi_due').textContent = due; $('#kpi_over').textContent = over; $('#kpi_30').textContent = soon;
-    }
-
-    function renderTable(){
-      const tbody = $('#tbody'); tbody.innerHTML='';
-      const start = (page-1)*pageSize; const items = filtered.slice(start, start+pageSize);
-      for(const d of items){
-        const st = statusOf(d.next_date||'');
-        const tr = document.createElement('tr');
-        tr.className = 'border-b border-slate-800 hover:bg-slate-900/40';
-        const pm = d.pm_date||'—'; const nx = d.next_date||'—';
-        tr.innerHTML = `
-          <td class="p-3 font-bold">${d.control||'—'}</td>
-          <td class="p-3">${d.site||'—'}</td>
-          <td class="p-3">${d.department||'—'}</td>
-          <td class="p-3">${pm}</td>
-          <td class="p-3">${nx}</td>
-          <td class="p-3">${d.tech||'—'}</td>
-          <td class="p-3">${pillHtml(st)}</td>
-          <td class="p-3 flex gap-2">
-            <a href="${buildLink(d.control)}" target="_blank" class="px-2 py-1 rounded-lg bg-sky-600 text-sky-950 font-bold">استيكر</a>
-            <button class="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700" data-qr="${encodeURIComponent(buildLink(d.control))}" data-ctl="${d.control}">طباعة QR</button>
-          </td>`;
-        tbody.appendChild(tr);
-      }
-      $('#pageInfo').textContent = `${Math.min(start+1, filtered.length)}–${Math.min(start+items.length, filtered.length)} من ${filtered.length}`;
-    }
-
-    $('#prev').onclick = ()=>{ if(page>1){ page--; renderTable(); } };
-    $('#next').onclick = ()=>{ if(page*pageSize < filtered.length){ page++; renderTable(); } };
-
-    // Print QR handler
-    document.addEventListener('click', e=>{
-      const btn = e.target.closest('button[data-qr]');
-      if(!btn) return;
-      const url = decodeURIComponent(btn.dataset.qr);
-      const ctl = btn.dataset.ctl || '';
-      try {
-        QRCode.toDataURL(url, {width:200, margin:1}).then(dataUrl=>{
-          const w = window.open('', '_blank');
-          const title = ctl? `QR — ${ctl}`: 'QR';
-          w.document.write(`<!doctype html><html><head><meta charset='utf-8'><title>${title}</title>
-            <style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh}
-            .box{display:flex;flex-direction:column;align-items:center;font-family:system-ui}
-            img{width:50mm;height:50mm;} .txt{margin-top:8px;font-weight:700}</style></head><body>
-            <div class='box'><img src='${dataUrl}'/><div class='txt'>${ctl}</div></div>
-          </body></html>`);
-          w.document.close(); w.focus(); w.print(); setTimeout(()=>w.close(), 300);
-        });
-      }catch{}
+    onAuthStateChanged(auth, user=>{
+      if(!user){ location.href='login.html'; return; }
+      $('#userEmail').textContent=user.email||'';
+      notify('مرحبًا '+user.email,'ok');
+      loadAssets();
     });
 
-    // Load data
-    async function loadData(){
+    $('#signOutBtn').onclick=()=>signOut(auth);
+
+    // زرار إضافة جهاز
+    $('#addBtn').onclick=()=>{ openModal(); };
+
+    function openModal(asset=null){
+      $('#modal').classList.remove('hidden');
+      if(asset){
+        $('#modalTitle').textContent='تعديل جهاز';
+        $('#m_control').value=asset.control;
+        $('#m_site').value=asset.site;
+        $('#m_dept').value=asset.department;
+        $('#m_tech').value=asset.tech;
+        $('#m_pm').value=asset.pm_date;
+      } else {
+        $('#modalTitle').textContent='إضافة جهاز';
+        ['m_control','m_site','m_dept','m_tech','m_pm'].forEach(id=>$('#'+id).value='');
+      }
+    }
+    window.closeModal=()=>$('#modal').classList.add('hidden');
+
+    $('#saveBtn').onclick=async()=>{
+      const control=$('#m_control').value.trim();
+      if(!control){notify('ادخل Control','error');return;}
+      const docId=control.replace(/[\/#?\s]/g,'-');
+      const site=$('#m_site').value.trim();
+      const dept=$('#m_dept').value.trim();
+      const tech=$('#m_tech').value.trim();
+      const pm=$('#m_pm').value;
+      const next=pm?toISO(addMonths(new Date(pm),6)):'';
       try{
-        notify('جارِ تحميل البيانات…');
-        const qs = await getDocs(query(collection(db,'assets'), orderBy('control')));
-        all = qs.docs.map(d => ({ id: d.id, ...d.data() }));
-        // Fill filters
-        const sites = Array.from(new Set(all.map(x=>x.site).filter(Boolean))).sort();
-        const depts = Array.from(new Set(all.map(x=>x.department).filter(Boolean))).sort();
-        $('#f_site').innerHTML = '<option value="">كل المواقع</option>' + sites.map(s=>`<option>${s}</option>`).join('');
-        $('#f_dept').innerHTML = '<option value="">كل الأقسام</option>' + depts.map(s=>`<option>${s}</option>`).join('');
-        filtered = all.slice(); renderTable(); renderKPI();
-        notify('تم التحميل ✅','ok');
-      }catch(e){ notify('فشل التحميل: '+e.message,'error'); }
+        await setDoc(doc(db,'assets',docId),{control,site,department:dept,tech,pm_date:pm,next_date:next,updatedAt:serverTimestamp()});
+        notify('تم الحفظ ✅','ok');
+        closeModal(); loadAssets();
+      }catch(e){notify('خطأ: '+e.message,'error');}
+    };
+
+    async function loadAssets(){
+      const qs=await getDocs(query(collection(db,'assets'), orderBy('control')));
+      const tbody=$('#tbody'); tbody.innerHTML='';
+      qs.forEach(docSnap=>{
+        const d=docSnap.data();
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
+          <td class="p-2">${d.control||''}</td>
+          <td class="p-2">${d.site||''}</td>
+          <td class="p-2">${d.department||''}</td>
+          <td class="p-2">${d.pm_date||''}</td>
+          <td class="p-2">${d.next_date||''}</td>
+          <td class="p-2">${d.tech||''}</td>
+          <td class="p-2"><span class="status-pill pill-ok">OK</span></td>
+          <td class="p-2 flex gap-2">
+            <button class="px-2 py-1 bg-sky-500 text-white rounded" onclick="openModal(${JSON.stringify(d)})">✏️ تعديل</button>
+            <button class="px-2 py-1 bg-emerald-500 text-white rounded" onclick="markPM('${docSnap.id}')">تم عمل الصيانة</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
-    // Filters handlers
-    ['q','f_site','f_dept','f_status'].forEach(id=>{
-      document.getElementById(id).addEventListener('input', applyFilters);
-      document.getElementById(id).addEventListener('change', applyFilters);
-    });
-    $('#refreshBtn').onclick = loadData;
-    $('#clearFilters').onclick = ()=>{ ['q','f_site','f_dept','f_status'].forEach(id=> document.getElementById(id).value=''); applyFilters(); };
-
-    // Global error capture
-    window.addEventListener('error', e=> notify('خطأ: ' + (e.error?.message||e.message),'error'));
-    window.addEventListener('unhandledrejection', e=> notify('خطأ: ' + (e.reason?.message||e.reason),'error'));
+    window.markPM=async(id)=>{
+      try{
+        const today=toISO(new Date());
+        const next=toISO(addMonths(new Date(),6));
+        await updateDoc(doc(db,'assets',id),{pm_date:today,next_date:next,updatedAt:serverTimestamp()});
+        notify('تم تحديث الصيانة ✅','ok');
+        loadAssets();
+      }catch(e){notify('فشل التحديث: '+e.message,'error');}
+    };
   </script>
 </body>
 </html>
