@@ -19,6 +19,22 @@
   .btn.ok{background:#10b981;color:#083344} .btn.secondary{background:#3b82f6;color:#e0f2fe}
   .qr{width:200px;height:200px;background:#fff;display:flex;align-items:center;justify-content:center;border-radius:10px}
   a.link{color:#67e8f9;text-decoration:none;word-break:break-all}
+  /* Sticker Styles */
+  .sticker{background:#fff;color:#000;border:1px solid #d1d5db;border-radius:12px;padding:14px;max-width:360px}
+  .sticker .head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+  .sticker .head img{height:36px;object-fit:contain}
+  .sticker .qr{width:140px;height:140px;border-radius:8px}
+  .sticker table{width:100%;border-collapse:collapse;font-size:13px}
+  .sticker td{padding:4px 6px;border-top:1px dashed #e5e7eb}
+  .sticker .k{color:#374151;width:45%}
+  .sticker .v{font-weight:700}
+  .tools{display:flex;gap:8px;margin:8px 0}
+  @media print{
+    body{background:#fff}
+    .container{padding:0}
+    .card, .notice{display:none !important}
+    #stickerOnly{display:block !important;margin:0 auto}
+  }
 </style>
 </head>
 <body>
@@ -53,10 +69,68 @@
       <button class="btn secondary" onclick="renderView()">عرض</button>
     </div>
     <div id="viewData"></div>
+
+    <div class="tools">
+      <button class="btn secondary" onclick="printSticker()">طباعة الاستيكر</button>
+    </div>
+
+    <!-- نسخة للطباعة فقط -->
+    <div id="stickerOnly" class="sticker" style="display:none"></div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js">// إعداد روابط اللوجوهات (ضع الروابط هنا أو ارسلهم لي أضيفهم):
+const COMPANY_LOGO = localStorage.getItem('pmqr_company_logo') || '';
+const CLUSTER_LOGO = localStorage.getItem('pmqr_cluster_logo') || '';
+
+function stickerHTML(d, qrDataUrl){
+  return `
+  <div class="sticker">
+    <div class="head">
+      <img src="${COMPANY_LOGO}" alt="الخليجية" onerror="this.style.display='none'"/>
+      <div style="font-weight:800;text-align:center">صيانة وقائية</div>
+      <img src="${CLUSTER_LOGO}" alt="تجمع تبوك" onerror="this.style.display='none'"/>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <img id="stickQR" class="qr" src="${qrDataUrl||''}" alt="QR"/>
+      <div style="font-size:12px;color:#374151;line-height:1.6">
+        <div><b>Control:</b> ${d.control||'—'}</div>
+        <div><b>PM Date:</b> ${d.pm_date||'—'}</div>
+        <div><b>Next Date:</b> ${d.next_date||'—'}</div>
+        <div><b>Tech:</b> ${d.tech||'—'}</div>
+      </div>
+    </div>
+    <table>
+      <tr><td class="k">Site</td><td class="v">${d.site||'—'}</td></tr>
+      <tr><td class="k">Department</td><td class="v">${d.department||'—'}</td></tr>
+      <tr><td class="k">Location</td><td class="v">${d.location||'—'}</td></tr>
+    </table>
+  </div>`;
+}
+
+// حفظ نسخة للصقها في قسم الطباعة
+function setSticker(d, link){
+  try{
+    // ولّد QR كـ dataURL
+    QRCode.toDataURL(link, {width: 140, margin: 1}).then(url=>{
+      document.getElementById('stickerOnly').innerHTML = stickerHTML(d, url);
+    }).catch(()=>{
+      const fallback = 'https://chart.googleapis.com/chart?cht=qr&chs=140x140&chl=' + encodeURIComponent(link);
+      document.getElementById('stickerOnly').innerHTML = stickerHTML(d, fallback);
+    });
+  }catch{
+    const fallback = 'https://chart.googleapis.com/chart?cht=qr&chs=140x140&chl=' + encodeURIComponent(link);
+    document.getElementById('stickerOnly').innerHTML = stickerHTML(d, fallback);
+  }
+}
+
+window.printSticker = function(){
+  // أظهر نسخة الطباعة فقط أثناء الطباعة
+  document.getElementById('stickerOnly').style.display = 'block';
+  window.print();
+  setTimeout(()=>{ document.getElementById('stickerOnly').style.display = 'none'; }, 300);
+};
+</script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
