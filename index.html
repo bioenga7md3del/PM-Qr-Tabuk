@@ -58,6 +58,9 @@
       <div class="qr"><img id="qrImg" alt="QR"/></div>
       <div>
         <a id="qrLink" class="link" target="_blank"></a>
+        <div style="margin-top:10px">
+          <button class="btn secondary" onclick="printQR('qrImg', document.getElementById('control').value)">طباعة الكيو آر</button>
+        </div>
       </div>
     </div>
   </div>
@@ -72,6 +75,7 @@
 
     <div class="tools">
       <button class="btn secondary" onclick="printSticker()">طباعة الاستيكر</button>
+      <button class="btn secondary" onclick="printQR('v_qr', document.getElementById('viewId').value)">طباعة الكيو آر</button>
     </div>
 
     <!-- نسخة للطباعة فقط -->
@@ -79,7 +83,9 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js">// إعداد روابط اللوجوهات (ضع الروابط هنا أو ارسلهم لي أضيفهم):
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script>
+// إعداد روابط اللوجوهات (ضع الروابط هنا أو ارسلهم لي أضيفهم):
 const COMPANY_LOGO = localStorage.getItem('pmqr_company_logo') || '';
 const CLUSTER_LOGO = localStorage.getItem('pmqr_cluster_logo') || '';
 
@@ -124,12 +130,21 @@ function setSticker(d, link){
   }
 }
 
-window.printSticker = function(){
-  // أظهر نسخة الطباعة فقط أثناء الطباعة
-  document.getElementById('stickerOnly').style.display = 'block';
-  window.print();
-  setTimeout(()=>{ document.getElementById('stickerOnly').style.display = 'none'; }, 300);
-};
+// طباعة صورة الكيو آر فقط (مرة واحدة للصقها على الجهاز)
+function printQR(imgId, controlText){
+  const img = document.getElementById(imgId);
+  if(!img || !img.src){ alert('من فضلك ولّد الكيو آر أولاً'); return; }
+  const w = window.open('', '_blank');
+  const title = controlText ? `QR — ${controlText}` : 'QR';
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
+    <style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh}
+    .box{display:flex;flex-direction:column;align-items:center;font-family:system-ui}
+    img{width:50mm;height:50mm;}
+    .txt{margin-top:8px;font-weight:700}</style></head><body>
+    <div class="box"><img src="${img.src}"/><div class="txt">${controlText||''}</div></div>
+  </body></html>`);
+  w.document.close(); w.focus(); w.print(); setTimeout(()=>w.close(), 300);
+}
 </script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
@@ -158,13 +173,15 @@ function notify(msg, type='info'){
 function toISO(d){ return new Date(d).toISOString().slice(0,10); }
 function addMonths(dateObj, n){ const d = new Date(dateObj); d.setMonth(d.getMonth()+n); return d; }
 function calcNext(pmDate){ if(!pmDate) return ""; return toISO(addMonths(new Date(pmDate),6)); }
-function buildLink(control){ return location.href.split('#')[0] + "#view/" + encodeURIComponent(control); }
+// اربط الكيو آر بصفحة الاستيكر مباشرة
+function buildLink(control){
+  const base = (location.origin + location.pathname).replace(/index\.html?$/,'');
+  return base + 'sticker.html#view/' + encodeURIComponent(control);
+}
 function makeQR(el, text){
   try{
-    // توليد محلي بدون أي اتصال خارجي
     QRCode.toDataURL(text, {width: 200, margin: 1}).then(url=>{ el.src = url; }).catch(err=>{
       console.error('QR generation failed', err);
-      // كـ fallback نستخدم خدمة الصور إن أمكن
       el.src = "https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=" + encodeURIComponent(text);
     });
   }catch(e){
@@ -221,7 +238,6 @@ window.renderView = async function(){
   const idInput = document.getElementById('viewId').value.trim();
   if(!idInput){ notify('اكتب الكنترول نمبر للعرض', 'error'); return; }
   try{
-    // جرّب أولاً بالـ ID الآمن (استبدال الرموز)
     const primaryId = idInput
       .replaceAll('/', '-')
       .replaceAll(' ', '-')
@@ -230,7 +246,6 @@ window.renderView = async function(){
 
     let snap = await getDoc(doc(db,'assets', primaryId));
     if(!snap.exists()){
-      // لو مش موجود، ابحث حسب الحقل control بالقيمة الأصلية
       const {collection, query, where, getDocs} = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js');
       const qs = await getDocs(query(collection(db,'assets'), where('control','==', idInput)));
       snap = qs.docs[0];
@@ -252,6 +267,8 @@ window.renderView = async function(){
       <div class="qr"><img id="v_qr" alt="QR"></div>
     `;
     makeQR(document.getElementById('v_qr'), link);
+    // جهّز نسخة الاستيكر للطباعة السريعة
+    setSticker(d, link);
     notify('تم تحميل بيانات الجهاز ✅', 'ok');
   }catch(e){
     notify('فشل العرض: ' + e.message, 'error');
