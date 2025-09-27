@@ -9,10 +9,17 @@
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;background:#f7fafc;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
   .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:8px}
-  .sticker{background:#fff;border:1px solid var(--line);border-radius:6px;width:85.6mm;height:54mm;max-width:100%;padding:4mm 5mm;box-shadow:0 8px 24px rgba(0,0,0,.08);display:grid;grid-template-rows:14mm 1fr}
+  /* بطاقة بحجم كارت الهوية CR80: 85.6mm × 54mm */
+  .sticker{
+    background:#fff;border:1px solid var(--line);border-radius:6px;
+    width:85.6mm;height:54mm;max-width:100%;padding:4mm 5mm;
+    box-shadow:0 8px 24px rgba(0,0,0,.08);
+    display:grid;grid-template-rows:14mm 1fr
+  }
   .head{display:flex;align-items:center;justify-content:space-between;gap:6px}
-  .head img{height:10mm;object-fit:contain}
-  .title{font-weight:800;font-size:11px}
+  /* حجم موحد للشعارين */
+  #logoCompany,#logoCluster{height:8mm;max-width:26mm;object-fit:contain}
+  .title{font-weight:900;font-size:14px}
   .body{display:grid;grid-template-columns:1fr 22mm;gap:4mm;align-items:center}
   .qr{width:22mm;height:22mm;border-radius:4px;background:#fff;display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
   .kv{display:grid;grid-template-columns:44% 56%;column-gap:3mm;row-gap:1.6mm;font-size:10.5px}
@@ -51,11 +58,13 @@
   <button class="btn" id="copyBtn">نسخ رابط المسح</button>
 </div>
 
+<!-- QR lib -->
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
+/* ===== Firebase Config ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
   authDomain: "pmqrtabuk.firebaseapp.com",
@@ -65,30 +74,38 @@ const firebaseConfig = {
   appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
 };
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db  = getFirestore(app);
 
-const $   = s => document.querySelector(s);
-const fmt = d => d ? new Date(d).toLocaleDateString('ar-SA') : '—';
+/* ===== Helpers ===== */
+const $ = s => document.querySelector(s);
+/* تاريخ ميلادي بتنسيق عربي */
+const fmt = d => {
+  if (!d) return '—';
+  const dt = new Date(d + 'T00:00:00');
+  return new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {day:'2-digit',month:'2-digit',year:'numeric'}).format(dt);
+};
 const safeId = s => (s||'').trim().replace(/[\/#?\s]/g,'-');
+const currentStickerLink = control =>
+  'https://bioenga7md3del.github.io/PM-Qr-Tabuk/sticker.html#view/' + encodeURIComponent(control);
 
-function currentStickerLink(control){
-  return 'https://bioenga7md3del.github.io/PM-Qr-Tabuk/sticker.html#view/' + encodeURIComponent(control);
-}
-
+/* ===== Load data by hash ===== */
 async function loadSticker(){
   const hash = (location.hash||'').trim();
-  if(!hash.startsWith('#view/')){ $('#meta').textContent='لا يوجد رقم جهاز في الرابط'; return; }
+  if(!hash.startsWith('#view/')){ $('#meta').textContent = 'لا يوجد رقم جهاز في الرابط'; return; }
   const controlRaw = decodeURIComponent(hash.slice(6));
-  if(!controlRaw){ $('#meta').textContent='لا يوجد رقم جهاز في الرابط'; return; }
+  if(!controlRaw){ $('#meta').textContent = 'لا يوجد رقم جهاز في الرابط'; return; }
 
+  // 1) docId الآمن
   let snap = await getDoc(doc(db,'assets', safeId(controlRaw)));
   if(!snap.exists()){
+    // 2) بحث بالحقل control كـ fallback
     const qs = await getDocs(query(collection(db,'assets'), where('control','==', controlRaw)));
     snap = qs.docs[0];
   }
-  if(!snap || !snap.exists()){ $('#meta').textContent='الجهاز غير موجود'; return; }
+  if(!snap || !snap.exists()){ $('#meta').textContent = 'الجهاز غير موجود'; return; }
   const d = snap.data();
 
+  // املأ القيم
   $('#v_control').textContent = d.control || controlRaw;
   $('#v_pm').textContent      = fmt(d.pm_date);
   $('#v_next').textContent    = fmt(d.next_date);
@@ -97,16 +114,17 @@ async function loadSticker(){
   $('#v_dept').textContent    = d.department || '—';
   $('#meta').textContent      = '';
 
+  // ولّد QR للرابط الحالي (الاستيكر نفسه)
   const link = currentStickerLink(d.control || controlRaw);
   QRCode.toDataURL(link, {width: 400, margin: 1})
     .then(url => { $('#qr').src = url; })
     .catch(()=>{ $('#qr').src = 'https://chart.googleapis.com/chart?cht=qr&chs=400x400&chl=' + encodeURIComponent(link); });
 
+  // زر النسخ
   $('#copyBtn').onclick = async ()=>{
-    try{ await navigator.clipboard.writeText(link); $('#copyBtn').textContent='تم النسخ ✅'; setTimeout(()=>$('#copyBtn').textContent='نسخ رابط المسح',1200); }catch{}
+    try{ await navigator.clipboard.writeText(link); $('#copyBtn').textContent = 'تم النسخ ✅'; setTimeout(()=>$('#copyBtn').textContent='نسخ رابط المسح',1200); }catch{}
   };
 }
-
 window.addEventListener('hashchange', loadSticker);
 window.addEventListener('load', loadSticker);
 </script>
