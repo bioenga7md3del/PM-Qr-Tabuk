@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>PM-QR – Sticker</title>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<style>
+  :root{ --ink:#111827; --muted:#6b7280; --line:#e5e7eb; }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#f7fafc;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:12px}
+  .sticker{background:#fff;border:1px solid var(--line);border-radius:14px;width:92mm;max-width:100%;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+  .head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+  .head img{height:24px;object-fit:contain}
+  .title{font-weight:800}
+  .row{display:flex;gap:10px;align-items:flex-start}
+  .qr{width:36mm;height:36mm;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
+  .kv{flex:1;display:grid;grid-template-columns:42% 58%;column-gap:8px;row-gap:4px;font-size:12.5px}
+  .k{color:var(--muted)} .v{font-weight:700}
+  .meta{margin-top:6px;color:var(--muted);font-size:11px}
+  .toolbar{position:fixed;inset:auto 12px 12px 12px;display:flex;gap:8px;justify-content:center}
+  .btn{padding:10px 14px;border:1px solid var(--line);background:#fff;border-radius:10px;font-weight:700;cursor:pointer}
+  @media print{
+    body{background:#fff}
+    .toolbar{display:none}
+    .wrap{padding:0}
+    .sticker{box-shadow:none;margin:0 auto}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="sticker" id="sticker">
+    <div class="head">
+      <img id="logoCompany" alt="الخليجية" onerror="this.style.display='none'"/>
+      <div class="title">صيانة وقائية</div>
+      <img id="logoCluster" alt="تجمع تبوك" onerror="this.style.display='none'"/>
+    </div>
+    <div class="row">
+      <div class="qr"><img id="qr" alt="QR" style="width:100%;height:100%;object-fit:contain"/></div>
+      <div class="kv">
+        <div class="k">Control Number</div><div class="v" id="v_control">—</div>
+        <div class="k">PM Date</div><div class="v" id="v_pm">—</div>
+        <div class="k">Next PM</div><div class="v" id="v_next">—</div>
+        <div class="k">Technician</div><div class="v" id="v_tech">—</div>
+        <div class="k">Site</div><div class="v" id="v_site">—</div>
+        <div class="k">Department</div><div class="v" id="v_dept">—</div>
+      </div>
+    </div>
+    <div class="meta" id="meta"></div>
+  </div>
+</div>
+<div class="toolbar">
+  <button class="btn" onclick="window.print()">طباعة</button>
+  <button class="btn" id="copyBtn">نسخ رابط المسح</button>
+</div>
+
+<!-- QR lib -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+/* ===== Firebase Config (ثابت) ===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
+  authDomain: "pmqrtabuk.firebaseapp.com",
+  projectId: "pmqrtabuk",
+  storageBucket: "pmqrtabuk.firebasestorage.app",
+  messagingSenderId: "305570616285",
+  appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* ===== Helpers ===== */
+const $ = s => document.querySelector(s);
+const fmt = d => d ? new Date(d).toLocaleDateString('ar-SA') : '—';
+const safeId = s => (s||'').trim().replace(/[\/#?\s]/g,'-');
+function currentStickerLink(control){
+  // اجعل QR يشير إلى هذه الصفحة نفسها
+  const base = location.origin + location.pathname;
+  return `${base}#view/${encodeURIComponent(control)}`;
+}
+
+/* ===== Logos from localStorage (لو موجودة) ===== */
+$('#logoCompany').src = localStorage.getItem('pmqr_company_logo') || '';
+$('#logoCluster').src = localStorage.getItem('pmqr_cluster_logo') || '';
+
+/* ===== Load data by hash ===== */
+async function loadSticker(){
+  const parts = (location.hash||'').split('/');
+  const controlRaw = parts[1] ? decodeURIComponent(parts[1]) : '';
+  if(!controlRaw){ $('#meta').textContent = 'لا يوجد رقم جهاز في الرابط'; return; }
+
+  // 1) جرّب بالـ docId الآمن
+  let snap = await getDoc(doc(db,'assets', safeId(controlRaw)));
+  if(!snap.exists()){
+    // 2) fallback بالبحث على حقل control
+    const qs = await getDocs(query(collection(db,'assets'), where('control','==', controlRaw)));
+    snap = qs.docs[0];
+  }
+  if(!snap || !snap.exists()){ $('#meta').textContent = 'الجهاز غير موجود'; return; }
+  const d = snap.data();
+
+  // املأ القيم
+  $('#v_control').textContent = d.control || controlRaw;
+  $('#v_pm').textContent = fmt(d.pm_date);
+  $('#v_next').textContent = fmt(d.next_date);
+  $('#v_tech').textContent = d.tech || '—';
+  $('#v_site').textContent = d.site || '—';
+  $('#v_dept').textContent = d.department || '—';
+  $('#meta').textContent = '';
+
+  // ولّد QR للرابط الحالي
+  const link = currentStickerLink(d.control || controlRaw);
+  QRCode.toDataURL(link, {width: 400, margin: 1})
+    .then(url => { $('#qr').src = url; })
+    .catch(()=>{ $('#qr').src = 'https://chart.googleapis.com/chart?cht=qr&chs=400x400&chl=' + encodeURIComponent(link); });
+
+  // copy button
+  $('#copyBtn').onclick = async ()=>{
+    try{ await navigator.clipboard.writeText(link); $('#copyBtn').textContent = 'تم النسخ ✅'; setTimeout(()=>$('#copyBtn').textContent='نسخ رابط المسح',1200); }catch{}
+  };
+}
+
+window.addEventListener('hashchange', loadSticker);
+window.addEventListener('load', loadSticker);
+</script>
+</body>
+</html>
