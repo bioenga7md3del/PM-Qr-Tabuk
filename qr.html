@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>PM-QR — طباعة أكواد QR</title>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --line:#e5e7eb;
+    --ink:#0f172a;
+  }
+  body{background:#f8fafc;color:var(--ink)}
+  .card{border:1px solid var(--line);background:#fff;border-radius:10px}
+  /* بطاقة QR مفرد */
+  .qr-card{width:58mm; padding:6mm; text-align:center; page-break-inside:avoid}
+  .qr-img{width:48mm; height:48mm; object-fit:contain; display:block; margin:0 auto 6mm auto}
+  .control{font-weight:800; font-size:14px; letter-spacing:.5px}
+  /* شبكة لطباعة مجموعة */
+  .grid-print{display:grid; grid-template-columns:repeat(3, 1fr); gap:8mm}
+  @media print{
+    .no-print{display:none !important}
+    body{background:#fff}
+    .grid-print{gap:6mm}
+  }
+</style>
+</head>
+<body>
+<header class="no-print sticky top-0 z-40 bg-white/80 backdrop-blur border-b border-slate-200">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    <h1 class="font-extrabold text-lg">طباعة أكواد QR</h1>
+    <div class="flex items-center gap-2">
+      <button id="btnPrint" class="px-3 py-2 rounded bg-sky-600 text-white font-bold">🖨️ طباعة</button>
+      <a href="index.html" class="px-3 py-2 rounded border border-slate-200">↩︎ الرجوع للوحة</a>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 py-6">
+  <!-- تنبيهات -->
+  <div id="notice" class="no-print mb-4 hidden p-3 rounded border text-sm"></div>
+
+  <!-- أوضاع الطباعة -->
+  <section class="no-print card p-4 mb-4">
+    <div class="flex flex-wrap items-end gap-4">
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">الوضع</label>
+        <select id="mode" class="px-3 py-2 border rounded w-52">
+          <option value="single">مفرد (QR واحد)</option>
+          <option value="dept">قسم كامل</option>
+        </select>
+      </div>
+
+      <!-- مفرد -->
+      <div id="singleControls" class="flex items-end gap-3">
+        <div>
+          <label class="block text-sm text-slate-600 mb-1">Control Number</label>
+          <input id="singleControl" class="px-3 py-2 border rounded w-60" placeholder="مثال: AS-0001"/>
+        </div>
+        <button id="loadSingle" class="px-3 py-2 rounded bg-slate-800 text-white">تحميل</button>
+      </div>
+
+      <!-- قسم كامل -->
+      <div id="deptControls" class="hidden flex flex-wrap items-end gap-3">
+        <div>
+          <label class="block text-sm text-slate-600 mb-1">الموقع</label>
+          <select id="siteSel" class="px-3 py-2 border rounded w-52"><option value="">— اختر —</option></select>
+        </div>
+        <div>
+          <label class="block text-sm text-slate-600 mb-1">القسم</label>
+          <select id="deptSel" class="px-3 py-2 border rounded w-52"><option value="">— اختر —</option></select>
+        </div>
+        <button id="loadDept" class="px-3 py-2 rounded bg-slate-800 text-white">تحميل القسم</button>
+      </div>
+
+      <!-- إعدادات الطباعة -->
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">حجم الـ QR</label>
+        <select id="qrSize" class="px-3 py-2 border rounded w-40">
+          <option value="sm">صغير (40mm)</option>
+          <option value="md" selected>متوسط (48mm)</option>
+          <option value="lg">كبير (56mm)</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- المعاينة / الطباعة -->
+  <section id="printArea" class="grid-print"></section>
+</main>
+
+<!-- QR lib -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+  import { getFirestore, collection, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+  // === Firebase ===
+  const firebaseConfig = {
+    apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
+    authDomain: "pmqrtabuk.firebaseapp.com",
+    projectId: "pmqrtabuk",
+    storageBucket: "pmqrtabuk.firebasestorage.app",
+    messagingSenderId: "305570616285",
+    appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  // === Helpers ===
+  const $ = s => document.querySelector(s);
+  function notify(msg, type='info'){
+    const n = $('#notice');
+    n.textContent = msg;
+    n.className = 'no-print mb-4 p-3 rounded border text-sm ' + (type==='error' ? 'border-red-300 bg-red-50 text-red-700' : 'border-sky-300 bg-sky-50 text-sky-700');
+    n.hidden = false;
+  }
+  function clearNotice(){ const n=$('#notice'); n.hidden=true; n.textContent=''; }
+  function buildStickerLink(control){ return `sticker.html#view/${encodeURIComponent(control)}`; }
+  function setQRSize(mm){
+    const imgs = document.querySelectorAll('.qr-img');
+    imgs.forEach(img=>{ img.style.width = mm; img.style.height = mm; });
+  }
+  function applySizeSelect(){
+    const v = $('#qrSize').value;
+    const mm = v==='sm' ? '40mm' : v==='lg' ? '56mm' : '48mm';
+    setQRSize(mm);
+  }
+
+  async function loadSitesDepts(){
+    // اسحب كل الأجهزة لاستخراج المواقع/الأقسام (خفيفة في الأحجام المتوسطة)
+    const qs = await getDocs(query(collection(db,'assets'), orderBy('site')));
+    const arr = qs.docs.map(d=> d.data());
+    const sites = [...new Set(arr.map(x=>x.site).filter(Boolean))].sort();
+    const depts = [...new Set(arr.map(x=>x.department).filter(Boolean))].sort();
+    $('#siteSel').innerHTML = '<option value="">— اختر —</option>' + sites.map(s=>`<option>${s}</option>`).join('');
+    $('#deptSel').innerHTML = '<option value="">— اختر —</option>' + depts.map(s=>`<option>${s}</option>`).join('');
+    return arr; // نرجعه لو احتجنا
+  }
+
+  function cardHTML(control){
+    return `
+      <div class="card qr-card">
+        <img class="qr-img" alt="QR" />
+        <div class="control">${control}</div>
+      </div>
+    `;
+  }
+
+  async function renderSingle(control){
+    if(!control){ notify('اكتب رقم Control أو افتح الصفحة من زر QR في الداشبورد', 'error'); return; }
+    clearNotice();
+    const area = $('#printArea');
+    area.classList.remove('grid-print');
+    area.innerHTML = cardHTML(control);
+    const img = area.querySelector('.qr-img');
+    const text = buildStickerLink(control);
+    try{
+      await QRCode.toDataURL(text, {width: 800, margin: 1}).then(url => img.src = url);
+    }catch{
+      img.src = 'https://chart.googleapis.com/chart?cht=qr&chs=800x800&chl=' + encodeURIComponent(text);
+    }
+    applySizeSelect();
+  }
+
+  async function renderDept(site, dept){
+    if(!site && !dept){ notify('اختر موقعًا أو قسمًا.', 'error'); return; }
+    clearNotice();
+    const area = $('#printArea');
+    area.classList.add('grid-print');
+    area.innerHTML = '';
+
+    // لو اختيارين سوا: فلتر الاثنين، لو واحد بس: فلتر بيه فقط
+    const all = (await getDocs(query(collection(db,'assets'), orderBy('control')))).docs.map(d=> d.data());
+    const list = all.filter(x=>{
+      const sOK = !site || x.site===site;
+      const dOK = !dept || x.department===dept;
+      return sOK && dOK;
+    });
+
+    if(!list.length){ notify('لا توجد أجهزة مطابقة للاختيار.', 'error'); area.innerHTML=''; return; }
+
+    // ابني الشبكة
+    area.innerHTML = list.map(x=> cardHTML(x.control)).join('');
+    const imgs = Array.from(area.querySelectorAll('.qr-img'));
+    await Promise.all(imgs.map((img,i)=>{
+      const txt = buildStickerLink(list[i].control);
+      return QRCode.toDataURL(txt, {width: 800, margin: 1})
+        .then(url => img.src = url)
+        .catch(()=> img.src = 'https://chart.googleapis.com/chart?cht=qr&chs=800x800&chl=' + encodeURIComponent(txt));
+    }));
+    applySizeSelect();
+    notify(`تم تجهيز ${list.length} بطاقة QR.`, 'ok');
+  }
+
+  // === UI Events ===
+  $('#mode').addEventListener('change', e=>{
+    const m = e.target.value;
+    if(m==='single'){
+      $('#singleControls').classList.remove('hidden'); $('#singleControls').classList.add('flex');
+      $('#deptControls').classList.add('hidden'); $('#deptControls').classList.remove('flex');
+    }else{
+      $('#singleControls').classList.add('hidden'); $('#singleControls').classList.remove('flex');
+      $('#deptControls').classList.remove('hidden'); $('#deptControls').classList.add('flex');
+      loadSitesDepts().catch(()=>{});
+    }
+    $('#printArea').innerHTML='';
+    clearNotice();
+  });
+
+  $('#loadSingle').addEventListener('click', ()=> renderSingle($('#singleControl').value.trim()));
+  $('#loadDept').addEventListener('click', ()=> renderDept($('#siteSel').value, $('#deptSel').value));
+  $('#qrSize').addEventListener('change', applySizeSelect);
+  $('#btnPrint').addEventListener('click', ()=> window.print());
+
+  // === Deep-link handling ===
+  const params = new URLSearchParams(location.search);
+  const controlFromQS = params.get('control');   // qr.html?control=AS-0001
+  const siteFromQS    = params.get('site');
+  const deptFromQS    = params.get('dept');
+  const autoprint     = params.get('autoprint');
+
+  if(controlFromQS){
+    $('#mode').value = 'single';
+    $('#singleControls').classList.remove('hidden'); $('#singleControls').classList.add('flex');
+    $('#deptControls').classList.add('hidden'); $('#deptControls').classList.remove('flex');
+    $('#singleControl').value = decodeURIComponent(controlFromQS);
+    renderSingle($('#singleControl').value).then(()=>{
+      if(autoprint==='1') setTimeout(()=> window.print(), 300);
+    });
+  }else{
+    // وضع القسم لو جاي بـ site/ dept
+    if(siteFromQS || deptFromQS){
+      $('#mode').value = 'dept';
+      $('#singleControls').classList.add('hidden'); $('#singleControls').classList.remove('flex');
+      $('#deptControls').classList.remove('hidden'); $('#deptControls').classList.add('flex');
+      loadSitesDepts().then(()=>{
+        if(siteFromQS) $('#siteSel').value = decodeURIComponent(siteFromQS);
+        if(deptFromQS) $('#deptSel').value = decodeURIComponent(deptFromQS);
+        renderDept($('#siteSel').value, $('#deptSel').value).then(()=>{
+          if(autoprint==='1') setTimeout(()=> window.print(), 300);
+        });
+      });
+    }else{
+      // الوضع الافتراضي: مفرد يدوي
+      $('#mode').value = 'single';
+    }
+  }
+</script>
+</body>
+</html>
