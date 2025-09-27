@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>PM-QR (Tabuk Health)</title>
+<style>
+  :root{ --bg:#0b1220; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --ok:#10b981; --err:#ef4444; --info:#3b82f6; }
+  body{background:#0b1220;color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0}
+  .notice{position:sticky;top:0;z-index:1000;padding:10px 14px;text-align:center;font-weight:700}
+  .n-ok{background:rgba(16,185,129,.15);border-bottom:1px solid rgba(16,185,129,.5);color:#a7f3d0}
+  .n-err{background:rgba(239,68,68,.15);border-bottom:1px solid rgba(239,68,68,.5);color:#fecaca}
+  .n-info{background:rgba(59,130,246,.15);border-bottom:1px solid rgba(59,130,246,.5);color:#bfdbfe}
+  .container{max-width:1100px;margin:0 auto;padding:20px}
+  .card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:16px;margin:10px 0;box-shadow:0 12px 36px rgba(0,0,0,.3)}
+  .row{margin:8px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  input{padding:10px 12px;border-radius:10px;border:1px solid #374151;background:#0b1220;color:#fff;min-width:260px}
+  .btn{padding:10px 14px;border-radius:10px;border:0;cursor:pointer;font-weight:700}
+  .btn.ok{background:#10b981;color:#083344} .btn.secondary{background:#3b82f6;color:#e0f2fe}
+  .qr{width:200px;height:200px;background:#fff;display:flex;align-items:center;justify-content:center;border-radius:10px}
+  a.link{color:#67e8f9;text-decoration:none;word-break:break-all}
+</style>
+</head>
+<body>
+<div id="notice" class="notice n-info">جارِ الاتصال بـ Firebase…</div>
+<div class="container">
+  <div class="card">
+    <h1>إضافة جهاز جديد</h1>
+    <div class="row">
+      <input id="control" placeholder="Control Number (مثال: AS-0001)"/>
+      <input id="site" placeholder="الموقع (مستشفى)"/>
+      <input id="dept" placeholder="القسم"/>
+      <input id="loc" placeholder="الوصف التفصيلي (اختياري)"/>
+      <input id="tech" placeholder="القائم بالصيانة"/>
+      <input id="pm_date" type="date" placeholder="تاريخ الصيانة الوقائية"/>
+    </div>
+    <div class="row">
+      <button class="btn ok" onclick="addAsset()">حفظ</button>
+      <button class="btn secondary" onclick="clearForm()">مسح</button>
+    </div>
+    <div class="row" style="align-items:flex-start">
+      <div class="qr"><img id="qrImg" alt="QR"/></div>
+      <div>
+        <a id="qrLink" class="link" target="_blank"></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h1>عرض جهاز</h1>
+    <div class="row">
+      <input id="viewId" placeholder="Control Number"/>
+      <button class="btn secondary" onclick="renderView()">عرض</button>
+    </div>
+    <div id="viewData"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
+  authDomain: "pmqrtabuk.firebaseapp.com",
+  projectId: "pmqrtabuk",
+  storageBucket: "pmqrtabuk.firebasestorage.app",
+  messagingSenderId: "305570616285",
+  appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+document.getElementById('notice').textContent = 'تم الاتصال بـ Firebase ✅';
+document.getElementById('notice').className = 'notice n-ok';
+
+function notify(msg, type='info'){
+  const n = document.getElementById('notice');
+  n.textContent = msg;
+  n.className = 'notice ' + (type==='ok' ? 'n-ok' : type==='error' ? 'n-err' : 'n-info');
+}
+function toISO(d){ return new Date(d).toISOString().slice(0,10); }
+function addMonths(dateObj, n){ const d = new Date(dateObj); d.setMonth(d.getMonth()+n); return d; }
+function calcNext(pmDate){ if(!pmDate) return ""; return toISO(addMonths(new Date(pmDate),6)); }
+function buildLink(control){ return location.href.split('#')[0] + "#view/" + encodeURIComponent(control); }
+function makeQR(el, text){
+  try{
+    // توليد محلي بدون أي اتصال خارجي
+    QRCode.toDataURL(text, {width: 200, margin: 1}).then(url=>{ el.src = url; }).catch(err=>{
+      console.error('QR generation failed', err);
+      // كـ fallback نستخدم خدمة الصور إن أمكن
+      el.src = "https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=" + encodeURIComponent(text);
+    });
+  }catch(e){
+    console.error('QR lib not loaded', e);
+    el.src = "https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=" + encodeURIComponent(text);
+  }
+}
+
+window.clearForm = function(){
+  ['control','site','dept','loc','tech','pm_date'].forEach(id=>{ document.getElementById(id).value=''; });
+  document.getElementById('qrImg').src='';
+  document.getElementById('qrLink').textContent='';
+  document.getElementById('qrLink').href='';
+};
+
+window.addAsset = async function(){
+  const control = document.getElementById('control').value.trim();
+  const site = document.getElementById('site').value.trim();
+  const dept = document.getElementById('dept').value.trim();
+  const loc = document.getElementById('loc').value.trim();
+  const tech = document.getElementById('tech').value.trim();
+  const pm = document.getElementById('pm_date').value;
+
+  if(!control || !pm){
+    notify('من فضلك أدخل الكنترول وتاريخ الصيانة الوقائية', 'error');
+    return;
+  }
+
+  // اصنع Document ID آمن بدون شرطات مائلة أو مسافات أو رموز خاصة
+  const docId = control
+    .replaceAll('/', '-')
+    .replaceAll(' ', '-')
+    .replaceAll('#','-')
+    .replaceAll('?','-');
+
+  const link = buildLink(control);
+  makeQR(document.getElementById('qrImg'), link);
+  document.getElementById('qrLink').textContent = link;
+  document.getElementById('qrLink').href = link;
+
+  try{
+    const next = calcNext(pm);
+    await setDoc(doc(db,'assets', docId), {
+      control, site, department:dept, location:loc, tech,
+      pm_date: pm, next_date: next, updatedAt: serverTimestamp()
+    });
+    notify('تم الحفظ وتوليد QR بنجاح ✅', 'ok');
+  }catch(e){
+    notify('فشل الحفظ: ' + e.message, 'error');
+  }
+};
+
+window.renderView = async function(){
+  const idInput = document.getElementById('viewId').value.trim();
+  if(!idInput){ notify('اكتب الكنترول نمبر للعرض', 'error'); return; }
+  try{
+    // جرّب أولاً بالـ ID الآمن (استبدال الرموز)
+    const primaryId = idInput
+      .replaceAll('/', '-')
+      .replaceAll(' ', '-')
+      .replaceAll('#','-')
+      .replaceAll('?','-');
+
+    let snap = await getDoc(doc(db,'assets', primaryId));
+    if(!snap.exists()){
+      // لو مش موجود، ابحث حسب الحقل control بالقيمة الأصلية
+      const {collection, query, where, getDocs} = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js');
+      const qs = await getDocs(query(collection(db,'assets'), where('control','==', idInput)));
+      snap = qs.docs[0];
+    }
+    if(!snap || !snap.exists()){ notify('الجهاز غير موجود', 'error'); document.getElementById('viewData').innerHTML=''; return; }
+    const d = snap.data();
+    const link = buildLink(d.control || idInput);
+    document.getElementById('viewData').innerHTML = `
+      <div>
+        <div>Control: <b>${d.control||idInput}</b></div>
+        <div>Site: ${d.site||'—'}</div>
+        <div>Department: ${d.department||'—'}</div>
+        <div>Location: ${d.location||'—'}</div>
+        <div>PM Date: ${d.pm_date||'—'}</div>
+        <div>Next Date: ${d.next_date||'—'}</div>
+        <div>Tech: ${d.tech||'—'}</div>
+        <div style="margin-top:8px"><a href="${link}" class="link" target="_blank">${link}</a></div>
+      </div>
+      <div class="qr"><img id="v_qr" alt="QR"></div>
+    `;
+    makeQR(document.getElementById('v_qr'), link);
+    notify('تم تحميل بيانات الجهاز ✅', 'ok');
+  }catch(e){
+    notify('فشل العرض: ' + e.message, 'error');
+  }
+};
+</script>
+</body>
+</html>
