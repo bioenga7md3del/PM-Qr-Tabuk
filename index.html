@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>PM-QR (Tabuk Health)</title>
+<title>PM-QR Web (Tabuk Health)</title>
 <style>
   :root{ --bg:#0b1220; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --ok:#10b981; --err:#ef4444; --info:#3b82f6; }
   body{background:#0b1220;color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0}
@@ -19,26 +19,13 @@
   .btn.ok{background:#10b981;color:#083344} .btn.secondary{background:#3b82f6;color:#e0f2fe}
   .qr{width:200px;height:200px;background:#fff;display:flex;align-items:center;justify-content:center;border-radius:10px}
   a.link{color:#67e8f9;text-decoration:none;word-break:break-all}
-  /* Sticker Styles */
-  .sticker{background:#fff;color:#000;border:1px solid #d1d5db;border-radius:12px;padding:14px;max-width:360px}
-  .sticker .head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
-  .sticker .head img{height:36px;object-fit:contain}
-  .sticker .qr{width:140px;height:140px;border-radius:8px}
-  .sticker table{width:100%;border-collapse:collapse;font-size:13px}
-  .sticker td{padding:4px 6px;border-top:1px dashed #e5e7eb}
-  .sticker .k{color:#374151;width:45%}
-  .sticker .v{font-weight:700}
   .tools{display:flex;gap:8px;margin:8px 0}
-  @media print{
-    body{background:#fff}
-    .container{padding:0}
-    .card, .notice{display:none !important}
-    #stickerOnly{display:block !important;margin:0 auto}
-  }
+  @media print{ .card, .notice{display:none !important} }
 </style>
 </head>
 <body>
 <div id="notice" class="notice n-info">جارِ الاتصال بـ Firebase…</div>
+
 <div class="container">
   <div class="card">
     <h1>إضافة جهاز جديد</h1>
@@ -58,7 +45,7 @@
       <div class="qr"><img id="qrImg" alt="QR"/></div>
       <div>
         <a id="qrLink" class="link" target="_blank"></a>
-        <div style="margin-top:10px">
+        <div class="tools">
           <button class="btn secondary" onclick="printQR('qrImg', document.getElementById('control').value)">طباعة الكيو آر</button>
         </div>
       </div>
@@ -72,65 +59,40 @@
       <button class="btn secondary" onclick="renderView()">عرض</button>
     </div>
     <div id="viewData"></div>
-
     <div class="tools">
-      <button class="btn secondary" onclick="printSticker()">طباعة الاستيكر</button>
       <button class="btn secondary" onclick="printQR('v_qr', document.getElementById('viewId').value)">طباعة الكيو آر</button>
+      <a class="btn ok" id="openSticker" target="_blank" rel="noopener">فتح صفحة الاستيكر</a>
     </div>
-
-    <!-- نسخة للطباعة فقط -->
-    <div id="stickerOnly" class="sticker" style="display:none"></div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 <script>
-// إعداد روابط اللوجوهات (ضع الروابط هنا أو ارسلهم لي أضيفهم):
-const COMPANY_LOGO = localStorage.getItem('pmqr_company_logo') || '';
-const CLUSTER_LOGO = localStorage.getItem('pmqr_cluster_logo') || '';
+// إشعارات + التقاط أخطاء عامة
+function notify(msg, type='info'){
+  const n = document.getElementById('notice');
+  n.textContent = msg;
+  n.className = 'notice ' + (type==='ok' ? 'n-ok' : type==='error' ? 'n-err' : 'n-info');
+}
+window.addEventListener('error', e => notify('خطأ جافاسكربت: ' + (e.error?.message || e.message), 'error'));
+window.addEventListener('unhandledrejection', e => notify('خطأ أثناء التحميل: ' + (e.reason?.message || e.reason), 'error'));
 
-function stickerHTML(d, qrDataUrl){
-  return `
-  <div class="sticker">
-    <div class="head">
-      <img src="${COMPANY_LOGO}" alt="الخليجية" onerror="this.style.display='none'"/>
-      <div style="font-weight:800;text-align:center">صيانة وقائية</div>
-      <img src="${CLUSTER_LOGO}" alt="تجمع تبوك" onerror="this.style.display='none'"/>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:6px">
-      <img id="stickQR" class="qr" src="${qrDataUrl||''}" alt="QR"/>
-      <div style="font-size:12px;color:#374151;line-height:1.6">
-        <div><b>Control:</b> ${d.control||'—'}</div>
-        <div><b>PM Date:</b> ${d.pm_date||'—'}</div>
-        <div><b>Next Date:</b> ${d.next_date||'—'}</div>
-        <div><b>Tech:</b> ${d.tech||'—'}</div>
-      </div>
-    </div>
-    <table>
-      <tr><td class="k">Site</td><td class="v">${d.site||'—'}</td></tr>
-      <tr><td class="k">Department</td><td class="v">${d.department||'—'}</td></tr>
-      <tr><td class="k">Location</td><td class="v">${d.location||'—'}</td></tr>
-    </table>
-  </div>`;
+function toISO(d){ return new Date(d).toISOString().slice(0,10); }
+function addMonths(dateObj, n){ const d = new Date(dateObj); d.setMonth(d.getMonth()+n); return d; }
+function calcNext(pmDate){ if(!pmDate) return ""; return toISO(addMonths(new Date(pmDate),6)); }
+function safeId(control){ return (control||'').trim().replace(/[\/#?\s]/g,'-'); }
+
+// اربط QR بصفحة الاستيكر على مسار موقعك
+function buildLink(control){
+  return 'https://bioenga7md3del.github.io/PM-Qr-Tabuk/sticker.html#view/' + encodeURIComponent(control);
 }
 
-// حفظ نسخة للصقها في قسم الطباعة
-function setSticker(d, link){
-  try{
-    // ولّد QR كـ dataURL
-    QRCode.toDataURL(link, {width: 140, margin: 1}).then(url=>{
-      document.getElementById('stickerOnly').innerHTML = stickerHTML(d, url);
-    }).catch(()=>{
-      const fallback = 'https://chart.googleapis.com/chart?cht=qr&chs=140x140&chl=' + encodeURIComponent(link);
-      document.getElementById('stickerOnly').innerHTML = stickerHTML(d, fallback);
-    });
-  }catch{
-    const fallback = 'https://chart.googleapis.com/chart?cht=qr&chs=140x140&chl=' + encodeURIComponent(link);
-    document.getElementById('stickerOnly').innerHTML = stickerHTML(d, fallback);
-  }
+function makeQR(el, text){
+  try { QRCode.toDataURL(text, {width:200, margin:1}).then(url=>{ el.src=url; }).catch(()=>{ el.src='https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl='+encodeURIComponent(text); }); }
+  catch { el.src='https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl='+encodeURIComponent(text); }
 }
 
-// طباعة صورة الكيو آر فقط (مرة واحدة للصقها على الجهاز)
+// طباعة QR فقط
 function printQR(imgId, controlText){
   const img = document.getElementById(imgId);
   if(!img || !img.src){ alert('من فضلك ولّد الكيو آر أولاً'); return; }
@@ -139,7 +101,93 @@ function printQR(imgId, controlText){
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
     <style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh}
     .box{display:flex;flex-direction:column;align-items:center;font-family:system-ui}
-    img{width:50mm;height:50mm;}
-    .txt{margin-top:8px;font-weight:700}</style></head><body>
+    img{width:50mm;height:50mm;} .txt{margin-top:8px;font-weight:700}</style></head><body>
     <div class="box"><img src="${img.src}"/><div class="txt">${controlText||''}</div></div>
-  </body>
+  </body></html>`);
+  w.document.close(); w.focus(); w.print(); setTimeout(()=>w.close(), 300);
+}
+</script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
+  authDomain: "pmqrtabuk.firebaseapp.com",
+  projectId: "pmqrtabuk",
+  storageBucket: "pmqrtabuk.firebasestorage.app",
+  messagingSenderId: "305570616285",
+  appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
+};
+
+try{
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+  notify('تم الاتصال بـ Firebase ✅','ok');
+
+  window.clearForm = function(){
+    ['control','site','dept','loc','tech','pm_date'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    document.getElementById('qrImg').src=''; document.getElementById('qrLink').textContent=''; document.getElementById('qrLink').href='';
+  };
+
+  window.addAsset = async function(){
+    const control = document.getElementById('control').value.trim();
+    const site = document.getElementById('site').value.trim();
+    const dept = document.getElementById('dept').value.trim();
+    const loc = document.getElementById('loc').value.trim();
+    const tech = document.getElementById('tech').value.trim();
+    const pm   = document.getElementById('pm_date').value;
+    if(!control || !pm){ notify('من فضلك أدخل الكنترول وتاريخ الصيانة الوقائية', 'error'); return; }
+
+    const docId = safeId(control);
+    const link  = buildLink(control);
+    makeQR(document.getElementById('qrImg'), link);
+    document.getElementById('qrLink').textContent = link;
+    document.getElementById('qrLink').href = link;
+
+    try{
+      const next = calcNext(pm);
+      await setDoc(doc(db,'assets', docId), { control, site, department:dept, location:loc, tech, pm_date: pm, next_date: next, updatedAt: serverTimestamp() });
+      notify('تم الحفظ وتوليد QR بنجاح ✅', 'ok');
+    }catch(e){ notify('فشل الحفظ: ' + e.message, 'error'); }
+  };
+
+  window.renderView = async function(){
+    const idInput = document.getElementById('viewId').value.trim();
+    if(!idInput){ notify('اكتب الكنترول نمبر للعرض', 'error'); return; }
+    try{
+      const primaryId = safeId(idInput);
+      let snap = await getDoc(doc(db,'assets', primaryId));
+      if(!snap.exists()){
+        const {collection, query, where, getDocs} = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js');
+        const qs = await getDocs(query(collection(db,'assets'), where('control','==', idInput)));
+        snap = qs.docs[0];
+      }
+      if(!snap || !snap.exists()){ notify('الجهاز غير موجود', 'error'); document.getElementById('viewData').innerHTML=''; return; }
+      const d = snap.data();
+      const link = buildLink(d.control || idInput);
+      document.getElementById('viewData').innerHTML = `
+        <div>
+          <div>Control: <b>${d.control||idInput}</b></div>
+          <div>Site: ${d.site||'—'}</div>
+          <div>Department: ${d.department||'—'}</div>
+          <div>Location: ${d.location||'—'}</div>
+          <div>PM Date: ${d.pm_date||'—'}</div>
+          <div>Next Date: ${d.next_date||'—'}</div>
+          <div>Tech: ${d.tech||'—'}</div>
+          <div style="margin-top:8px"><a href="${link}" class="link" target="_blank">${link}</a></div>
+        </div>
+        <div class="qr"><img id="v_qr" alt="QR"></div>
+      `;
+      makeQR(document.getElementById('v_qr'), link);
+      document.getElementById('openSticker').href = link;
+      notify('تم تحميل بيانات الجهاز ✅', 'ok');
+    }catch(e){ notify('فشل العرض: ' + e.message, 'error'); }
+  };
+}catch(e){
+  notify('فشل تهيئة Firebase: ' + e.message, 'error');
+}
+</script>
+</body>
+</html>
