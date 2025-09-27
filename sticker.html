@@ -9,36 +9,32 @@
   :root{ --ink:#111827; --muted:#6b7280; --line:#e5e7eb; }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;background:#f7fafc;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
-  .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:12px}
-  .sticker{background:#fff;border:1px solid var(--line);border-radius:14px;width:92mm;max-width:100%;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
-  .head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
-  .head img{height:24px;object-fit:contain}
-  .title{font-weight:800}
-  .row{display:flex;gap:10px;align-items:flex-start}
-  .qr{width:36mm;height:36mm;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
-  .kv{flex:1;display:grid;grid-template-columns:42% 58%;column-gap:8px;row-gap:4px;font-size:12.5px}
+  .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:8px}
+  /* بطاقة بحجم كارت الهوية CR80: 85.6mm × 54mm */
+  .sticker{background:#fff;border:1px solid var(--line);border-radius:6px;width:85.6mm;height:54mm;max-width:100%;padding:4mm 5mm;box-shadow:0 8px 24px rgba(0,0,0,.08);display:grid;grid-template-rows:14mm 1fr}
+  .head{display:flex;align-items:center;justify-content:space-between;gap:6px}
+  .head img{height:10mm;object-fit:contain}
+  .title{font-weight:800;font-size:11px}
+  .body{display:grid;grid-template-columns:1fr 22mm;gap:4mm;align-items:center}
+  .qr{width:22mm;height:22mm;border-radius:4px;background:#fff;display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
+  .kv{display:grid;grid-template-columns:44% 56%;column-gap:3mm;row-gap:1.6mm;font-size:10.5px}
   .k{color:var(--muted)} .v{font-weight:700}
-  .meta{margin-top:6px;color:var(--muted);font-size:11px}
-  .toolbar{position:fixed;inset:auto 12px 12px 12px;display:flex;gap:8px;justify-content:center}
+  .meta{margin-top:2mm;color:var(--muted);font-size:9.5px}
+  .toolbar{position:fixed;inset:auto 8px 8px 8px;display:flex;gap:8px;justify-content:center}
   .btn{padding:10px 14px;border:1px solid var(--line);background:#fff;border-radius:10px;font-weight:700;cursor:pointer}
-  @media print{
-    body{background:#fff}
-    .toolbar{display:none}
-    .wrap{padding:0}
-    .sticker{box-shadow:none;margin:0 auto}
-  }
+  @media (max-width:480px){ .sticker{width:92vw;height:auto;grid-template-rows:auto auto} .body{grid-template-columns:1fr} .qr{justify-self:center} }
+  @media print{ body{background:#fff} .toolbar{display:none} .wrap{padding:0} .sticker{box-shadow:none;margin:0 auto} }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="sticker" id="sticker">
     <div class="head">
-      <img id="logoCompany" alt="الخليجية" onerror="this.style.display='none'"/>
+      <img id="logoCompany" src="https://ga7md3del.github.io/assets/FGC.jpeg" alt="الخليجية"/>
       <div class="title">صيانة وقائية</div>
-      <img id="logoCluster" alt="تجمع تبوك" onerror="this.style.display='none'"/>
+      <img id="logoCluster" src="https://ga7md3del.github.io/assets/TabukCluster.jpeg" alt="تجمع تبوك"/>
     </div>
-    <div class="row">
-      <div class="qr"><img id="qr" alt="QR" style="width:100%;height:100%;object-fit:contain"/></div>
+    <div class="body">
       <div class="kv">
         <div class="k">Control Number</div><div class="v" id="v_control">—</div>
         <div class="k">PM Date</div><div class="v" id="v_pm">—</div>
@@ -47,8 +43,9 @@
         <div class="k">Site</div><div class="v" id="v_site">—</div>
         <div class="k">Department</div><div class="v" id="v_dept">—</div>
       </div>
+      <div class="qr"><img id="qr" alt="QR" style="width:100%;height:100%;object-fit:contain"/></div>
     </div>
-    <div class="meta" id="meta"></div>
+    <div class="meta" id="meta">&nbsp;</div>" id="meta"></div>
   </div>
 </div>
 <div class="toolbar">
