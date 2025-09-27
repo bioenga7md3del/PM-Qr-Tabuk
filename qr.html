@@ -7,10 +7,7 @@
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-  :root{
-    --line:#e5e7eb;
-    --ink:#0f172a;
-  }
+  :root{ --line:#e5e7eb; --ink:#0f172a; }
   body{background:#f8fafc;color:var(--ink)}
   .card{border:1px solid var(--line);background:#fff;border-radius:10px}
   /* بطاقة QR مفرد */
@@ -118,7 +115,13 @@
     n.hidden = false;
   }
   function clearNotice(){ const n=$('#notice'); n.hidden=true; n.textContent=''; }
-  function buildStickerLink(control){ return `sticker.html#view/${encodeURIComponent(control)}`; }
+
+  // ⚠️ رابط مطلق لصفحة الاستيكر (يفتح مباشرة من أي ماسح QR)
+  function buildStickerLink(control){
+    const stickerAbs = new URL('sticker.html', location.href).toString(); // URL مطلق
+    return `${stickerAbs}#view/${encodeURIComponent(control)}`;
+  }
+
   function setQRSize(mm){
     const imgs = document.querySelectorAll('.qr-img');
     imgs.forEach(img=>{ img.style.width = mm; img.style.height = mm; });
@@ -130,14 +133,14 @@
   }
 
   async function loadSitesDepts(){
-    // اسحب كل الأجهزة لاستخراج المواقع/الأقسام (خفيفة في الأحجام المتوسطة)
+    // نسحب كل البيانات لاستخراج المواقع/الأقسام (لو الداتا كبيرة جدًا لاحقًا ممكن نستبدلها بمجموعات ثابتة)
     const qs = await getDocs(query(collection(db,'assets'), orderBy('site')));
     const arr = qs.docs.map(d=> d.data());
     const sites = [...new Set(arr.map(x=>x.site).filter(Boolean))].sort();
     const depts = [...new Set(arr.map(x=>x.department).filter(Boolean))].sort();
     $('#siteSel').innerHTML = '<option value="">— اختر —</option>' + sites.map(s=>`<option>${s}</option>`).join('');
     $('#deptSel').innerHTML = '<option value="">— اختر —</option>' + depts.map(s=>`<option>${s}</option>`).join('');
-    return arr; // نرجعه لو احتجنا
+    return arr;
   }
 
   function cardHTML(control){
@@ -156,7 +159,7 @@
     area.classList.remove('grid-print');
     area.innerHTML = cardHTML(control);
     const img = area.querySelector('.qr-img');
-    const text = buildStickerLink(control);
+    const text = buildStickerLink(control); // ← يفتح الاستيكر
     try{
       await QRCode.toDataURL(text, {width: 800, margin: 1}).then(url => img.src = url);
     }catch{
@@ -172,7 +175,7 @@
     area.classList.add('grid-print');
     area.innerHTML = '';
 
-    // لو اختيارين سوا: فلتر الاثنين، لو واحد بس: فلتر بيه فقط
+    // فلترة حسب اختيار الموقع/القسم
     const all = (await getDocs(query(collection(db,'assets'), orderBy('control')))).docs.map(d=> d.data());
     const list = all.filter(x=>{
       const sOK = !site || x.site===site;
@@ -182,11 +185,11 @@
 
     if(!list.length){ notify('لا توجد أجهزة مطابقة للاختيار.', 'error'); area.innerHTML=''; return; }
 
-    // ابني الشبكة
+    // بناء الشبكة
     area.innerHTML = list.map(x=> cardHTML(x.control)).join('');
     const imgs = Array.from(area.querySelectorAll('.qr-img'));
     await Promise.all(imgs.map((img,i)=>{
-      const txt = buildStickerLink(list[i].control);
+      const txt = buildStickerLink(list[i].control); // ← يفتح الاستيكر
       return QRCode.toDataURL(txt, {width: 800, margin: 1})
         .then(url => img.src = url)
         .catch(()=> img.src = 'https://chart.googleapis.com/chart?cht=qr&chs=800x800&chl=' + encodeURIComponent(txt));
