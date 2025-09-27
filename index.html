@@ -1,236 +1,325 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>PM-QR Web (Tabuk Health)</title>
-<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-<style>
-  :root{ --bg:#0b1220; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --ok:#10b981; --err:#ef4444; --info:#3b82f6; }
-  body{background:#0b1220;color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0}
-  .notice{position:sticky;top:0;z-index:1000;padding:10px 14px;text-align:center;font-weight:700}
-  .n-ok{background:rgba(16,185,129,.15);border-bottom:1px solid rgba(16,185,129,.5);color:#a7f3d0}
-  .n-err{background:rgba(239,68,68,.15);border-bottom:1px solid rgba(239,68,68,.5);color:#fecaca}
-  .n-info{background:rgba(59,130,246,.15);border-bottom:1px solid rgba(59,130,246,.5);color:#bfdbfe}
-  .container{max-width:1100px;margin:0 auto;padding:20px}
-  .card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:16px;margin:10px 0;box-shadow:0 12px 36px rgba(0,0,0,.3)}
-  .row{margin:8px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  input{padding:10px 12px;border-radius:10px;border:1px solid #374151;background:#0b1220;color:#fff;min-width:260px}
-  .btn{padding:10px 14px;border-radius:10px;border:0;cursor:pointer;font-weight:700}
-  .btn.ok{background:#10b981;color:#083344} .btn.secondary{background:#3b82f6;color:#e0f2fe}
-  .qr{width:200px;height:200px;background:#fff;display:flex;align-items:center;justify-content:center;border-radius:10px}
-  a.link{color:#67e8f9;text-decoration:none;word-break:break-all}
-  .tools{display:flex;gap:8px;margin:8px 0}
-  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-  .user{color:#a7f3d0;font-size:.95rem}
-  @media print{ .card, .notice{display:none !important} }
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>PM-QR Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: { colors: { brand:'#0ea5e9'} } } };</script>
+  <style>
+    .status-pill{ padding:.25rem .5rem; border-radius:999px; font-size:.75rem; font-weight:800 }
+    .pill-ok{ background:#dcfce7; color:#166534 }
+    .pill-warn{ background:#fef9c3; color:#854d0e }
+    .pill-bad{ background:#fee2e2; color:#991b1b }
+    .pill-info{ background:#e2e8f0; color:#334155 }
+    @media print { .no-print{ display:none !important } }
+  </style>
 </head>
-<body>
-<div id="notice" class="notice n-info">جارِ التحقق من الجلسة…</div>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <!-- Notice bar -->
+  <div id="notice" class="no-print text-center py-2 font-bold bg-sky-900/40 border-b border-sky-700">جارِ التحقق من الجلسة…</div>
 
-<div class="container" style="display:none" id="appRoot">
-  <div class="topbar">
-  <h1 style="margin:0">لوحة PM-QR</h1>
-  <div>
-    <a href="import.html" class="btn ok" style="margin-left:10px">📂 رفع ملف إكسل</a>
-    <span class="user" id="userInfo"></span>
-    <button class="btn secondary" id="signOutBtn">تسجيل الخروج</button>
-  </div>
-</div>
-
-  </div>
-
-  <div class="card">
-    <h2>إضافة جهاز جديد</h2>
-    <div class="row">
-      <input id="control" placeholder="Control Number (مثال: AS-0001)"/>
-      <input id="site" placeholder="الموقع (مستشفى)"/>
-      <input id="dept" placeholder="القسم"/>
-      <input id="loc" placeholder="الوصف التفصيلي (اختياري)"/>
-      <input id="tech" placeholder="القائم بالصيانة"/>
-      <input id="pm_date" type="date" placeholder="تاريخ الصيانة الوقائية"/>
+  <!-- Topbar -->
+  <header class="no-print sticky top-0 z-40 bg-slate-900/80 backdrop-blur border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="text-xl font-extrabold">لوحة PM-QR</div>
+        <span id="userEmail" class="hidden md:inline text-slate-300 text-sm"></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="import.html" class="px-3 py-2 rounded-lg bg-emerald-500 text-emerald-950 font-bold hover:opacity-90">📂 رفع ملف إكسل</a>
+        <button id="addBtn" class="px-3 py-2 rounded-lg bg-sky-500 text-sky-950 font-bold hover:opacity-90">➕ إضافة جهاز</button>
+        <button id="signOutBtn" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700">تسجيل الخروج</button>
+      </div>
     </div>
-    <div class="row">
-      <button class="btn ok" id="saveBtn">حفظ</button>
-      <button class="btn secondary" id="clearBtn">مسح</button>
-    </div>
-    <div class="row" style="align-items:flex-start">
-      <div class="qr"><img id="qrImg" alt="QR"/></div>
-      <div>
-        <a id="qrLink" class="link" target="_blank"></a>
-        <div class="tools">
-          <button class="btn secondary" id="printAddQRBtn">طباعة الكيو آر</button>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <!-- KPI Cards -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div class="text-slate-400">إجمالي الأجهزة</div>
+        <div id="kpi_total" class="text-3xl font-extrabold">—</div>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div class="text-slate-400">المستحقة هذا الشهر</div>
+        <div id="kpi_due" class="text-3xl font-extrabold">—</div>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div class="text-slate-400">متأخرة</div>
+        <div id="kpi_over" class="text-3xl font-extrabold">—</div>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div class="text-slate-400">خلال 30 يومًا</div>
+        <div id="kpi_30" class="text-3xl font-extrabold">—</div>
+      </div>
+    </section>
+
+    <!-- Filters -->
+    <section class="no-print mt-6 bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <input id="q" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800" placeholder="بحث بالـ Control أو الفني…"/>
+        <select id="f_site" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800"><option value="">كل المواقع</option></select>
+        <select id="f_dept" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800"><option value="">كل الأقسام</option></select>
+        <select id="f_status" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800">
+          <option value="">كل الحالات</option>
+          <option value="ok">محدّث</option>
+          <option value="due">مستحق هذا الشهر</option>
+          <option value="over">متأخر</option>
+          <option value="soon">خلال 30 يومًا</option>
+        </select>
+        <div class="flex gap-2">
+          <button id="refreshBtn" class="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700">تحديث</button>
+          <button id="clearFilters" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700">مسح</button>
         </div>
+      </div>
+    </section>
+
+    <!-- Table -->
+    <section class="mt-4 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-800 text-slate-200">
+            <tr>
+              <th class="p-3 text-right">Control</th>
+              <th class="p-3 text-right">Site</th>
+              <th class="p-3 text-right">Department</th>
+              <th class="p-3 text-right">PM Date</th>
+              <th class="p-3 text-right">Next PM</th>
+              <th class="p-3 text-right">Tech</th>
+              <th class="p-3 text-right">الحالة</th>
+              <th class="p-3 text-right">أدوات</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <!-- Pagination -->
+      <div class="flex items-center justify-between p-3 border-t border-slate-800 no-print">
+        <div id="pageInfo" class="text-slate-400 text-sm">—</div>
+        <div class="flex gap-2">
+          <button id="prev" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700">السابق</button>
+          <button id="next" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700">التالي</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Add/Edit Modal -->
+  <div id="modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center no-print">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-[95vw] max-w-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <div class="text-lg font-extrabold">إضافة جهاز</div>
+        <button id="closeModal" class="text-slate-300 hover:text-white">✕</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <input id="m_control" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800" placeholder="Control Number"/>
+        <input id="m_site" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800" placeholder="Site"/>
+        <input id="m_dept" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800" placeholder="Department"/>
+        <input id="m_loc" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800" placeholder="Location (اختياري)"/>
+        <input id="m_tech" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800" placeholder="Technician"/>
+        <input id="m_pm" type="date" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800" placeholder="PM Date"/>
+      </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="saveModal" class="px-4 py-2 rounded-lg bg-sky-500 text-sky-950 font-bold">حفظ</button>
+        <button id="cancelModal" class="px-4 py-2 rounded-lg bg-slate-800 border border-slate-700">إلغاء</button>
       </div>
     </div>
   </div>
 
-  <div class="card">
-    <h2>عرض جهاز</h2>
-    <div class="row">
-      <input id="viewId" placeholder="Control Number"/>
-      <button class="btn secondary" id="viewBtn">عرض</button>
-    </div>
-    <div id="viewData"></div>
-    <div class="tools">
-      <button class="btn secondary" id="printViewQRBtn">طباعة الكيو آر</button>
-      <a class="btn ok" id="openSticker" target="_blank" rel="noopener">فتح صفحة الاستيكر</a>
-    </div>
-  </div>
-</div>
+  <!-- QR lib -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-<script>
-// إشعارات عامة + التقاط أخطاء
-function notify(msg, type='info'){
-  const n = document.getElementById('notice');
-  n.textContent = msg;
-  n.className = 'notice ' + (type==='ok' ? 'n-ok' : type==='error' ? 'n-err' : 'n-info');
-}
-window.addEventListener('error', e => notify('خطأ جافاسكربت: ' + (e.error?.message || e.message), 'error'));
-window.addEventListener('unhandledrejection', e => notify('خطأ أثناء التحميل: ' + (e.reason?.message || e.reason), 'error'));
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js';
+    import { getFirestore, collection, getDocs, query, orderBy, setDoc, doc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 
-function toISO(d){ return new Date(d).toISOString().slice(0,10); }
-function addMonths(dateObj, n){ const d = new Date(dateObj); d.setMonth(d.getMonth()+n); return d; }
-function calcNext(pmDate){ if(!pmDate) return ""; return toISO(addMonths(new Date(pmDate),6)); }
-function safeId(control){ return (control||'').trim().replace(/[\/#?\s]/g,'-'); }
-// اربط QR بصفحة الاستيكر على مسار موقعك
-function buildLink(control){
-  return 'https://bioenga7md3del.github.io/PM-Qr-Tabuk/sticker.html#view/' + encodeURIComponent(control);
-}
-function makeQR(el, text){
-  try { QRCode.toDataURL(text, {width:200, margin:1}).then(url=>{ el.src=url; }).catch(()=>{ el.src='https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl='+encodeURIComponent(text); }); }
-  catch { el.src='https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl='+encodeURIComponent(text); }
-}
-// طباعة QR فقط
-function printQR(imgId, controlText){
-  const img = document.getElementById(imgId);
-  if(!img || !img.src){ alert('من فضلك ولّد الكيو آر أولاً'); return; }
-  const w = window.open('', '_blank');
-  const title = controlText ? `QR — ${controlText}` : 'QR';
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
-    <style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh}
-    .box{display:flex;flex-direction:column;align-items:center;font-family:system-ui}
-    img{width:50mm;height:50mm;} .txt{margin-top:8px;font-weight:700}</style></head><body>
-    <div class="box"><img src="${img.src}"/><div class="txt">${controlText||''}</div></div>
-  </body></html>`);
-  w.document.close(); w.focus(); w.print(); setTimeout(()=>w.close(), 300);
-}
-// فورم
-function clearForm(){
-  ['control','site','dept','loc','tech','pm_date'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  document.getElementById('qrImg').src=''; document.getElementById('qrLink').textContent=''; document.getElementById('qrLink').href='';
-}
-</script>
+    const firebaseConfig = {
+      apiKey: 'AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM',
+      authDomain: 'pmqrtabuk.firebaseapp.com',
+      projectId: 'pmqrtabuk',
+      storageBucket: 'pmqrtabuk.firebasestorage.app',
+      messagingSenderId: '305570616285',
+      appId: '1:305570616285:web:4f6839fd08b8b5aa131c34'
+    };
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-/* Firebase Config */
-const firebaseConfig = {
-  apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
-  authDomain: "pmqrtabuk.firebaseapp.com",
-  projectId: "pmqrtabuk",
-  storageBucket: "pmqrtabuk.firebasestorage.app",
-  messagingSenderId: "305570616285",
-  appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
-};
-const app  = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+    // Utils
+    const $ = s => document.querySelector(s);
+    function notify(msg, type='info'){
+      const n = $('#notice');
+      n.textContent = msg;
+      n.className = 'no-print text-center py-2 font-bold ' + (type==='ok'?'bg-emerald-900/40 border-b border-emerald-700': type==='error'?'bg-red-900/40 border-b border-red-700':'bg-sky-900/40 border-b border-sky-700');
+    }
+    const toISO = d => new Date(d).toISOString().slice(0,10);
+    const addMonths = (d, m)=>{const x=new Date(d); x.setMonth(x.getMonth()+m); return x};
+    const calcNext = pm => pm? toISO(addMonths(pm,6)) : '';
+    const safeId = s => String(s||'').trim().replace(/[\\/?#\\s]+/g,'-');
+    const buildLink = control => 'https://bioenga7md3del.github.io/PM-Qr-Tabuk/sticker.html#view/' + encodeURIComponent(control);
 
-let db; // هنهيئه بعد التأكد من المستخدم
+    function statusOf(nextISO){
+      if(!nextISO) return {key:'info',label:'غير محدد'};
+      const today = new Date();
+      const next = new Date(nextISO + 'T00:00:00');
+      const diff = (next - today) / (1000*60*60*24);
+      if(diff < 0) return {key:'over', label:'متأخر'};
+      if(diff <= 30) return {key:'soon', label:'خلال 30 يومًا'};
+      const inSameMonth = today.getFullYear()===next.getFullYear() && today.getMonth()===next.getMonth();
+      if(inSameMonth) return {key:'due', label:'مستحق هذا الشهر'};
+      return {key:'ok', label:'محدّث'};
+    }
+    function pillHtml(st){
+      const cls = st.key==='ok'?'pill-ok': st.key==='soon'?'pill-warn': st.key==='over'?'pill-bad':'pill-info';
+      return `<span class="status-pill ${cls}">${st.label}</span>`;
+    }
 
-onAuthStateChanged(auth, async (user)=>{
-  if(!user){
-    notify('لم يتم تسجيل الدخول — تحويل إلى صفحة الدخول…', 'n-info');
-    location.href = 'login.html';
-    return;
-  }
-  // مستخدم موجود → فعّل الصفحة
-  document.getElementById('userInfo').textContent = user.email || '(مستخدم)';
-  document.getElementById('appRoot').style.display = 'block';
-  notify('تم تسجيل الدخول ✅ وجارِ الاتصال بـ Firebase…', 'ok');
+    // Auth guard
+    onAuthStateChanged(auth, async user=>{
+      if(!user){ location.href='login.html'; return; }
+      $('#userEmail').textContent = user.email || '';
+      notify('تم تسجيل الدخول ✅','ok');
+      await loadData();
+    });
 
-  try{
-    db = (await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js')).getFirestore(app);
-    notify('تم الاتصال بـ Firebase ✅', 'ok');
-  }catch(e){
-    notify('فشل تهيئة Firestore: ' + e.message, 'error');
-    return;
-  }
+    $('#signOutBtn').onclick = ()=> signOut(auth).then(()=> location.href='login.html');
 
-  // أزرار عامة
-  document.getElementById('signOutBtn').onclick = ()=> signOut(auth).then(()=> location.href='login.html');
+    // Modal controls
+    const modal = $('#modal');
+    const openModal = ()=>{ modal.classList.remove('hidden'); modal.classList.add('flex'); };
+    const closeModal = ()=>{ modal.classList.add('hidden'); modal.classList.remove('flex'); };
+    $('#addBtn').onclick = ()=>{ ['m_control','m_site','m_dept','m_loc','m_tech','m_pm'].forEach(id=>$('#'+id).value=''); openModal(); };
+    $('#closeModal').onclick = closeModal; $('#cancelModal').onclick = closeModal;
 
-  // إضافة جهاز
-  document.getElementById('saveBtn').onclick = async ()=>{
-    const control = document.getElementById('control').value.trim();
-    const site = document.getElementById('site').value.trim();
-    const dept = document.getElementById('dept').value.trim();
-    const loc  = document.getElementById('loc').value.trim();
-    const tech = document.getElementById('tech').value.trim();
-    const pm   = document.getElementById('pm_date').value;
-    if(!control || !pm){ notify('من فضلك أدخل الكنترول وتاريخ الصيانة الوقائية', 'error'); return; }
+    $('#saveModal').onclick = async ()=>{
+      const control = $('#m_control').value.trim();
+      const site = $('#m_site').value.trim();
+      const department = $('#m_dept').value.trim();
+      const location = $('#m_loc').value.trim();
+      const tech = $('#m_tech').value.trim();
+      const pm = $('#m_pm').value;
+      if(!control || !pm){ notify('أدخل الكنترول وتاريخ الصيانة', 'error'); return; }
+      const next = calcNext(new Date(pm));
+      try{
+        await setDoc(doc(db,'assets', safeId(control)), { control, site, department, location, tech, pm_date: pm, next_date: next, updatedAt: serverTimestamp() });
+        notify('تم الحفظ ✅','ok');
+        closeModal();
+        await loadData();
+      }catch(e){ notify('فشل الحفظ: '+e.message,'error'); }
+    };
 
-    const docId = (await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js')).doc(db,'assets', (control||'').replace(/[\/#?\s]/g,'-'));
-    const link  = 'https://bioenga7md3del.github.io/PM-Qr-Tabuk/sticker.html#view/' + encodeURIComponent(control);
-    makeQR(document.getElementById('qrImg'), link);
-    document.getElementById('qrLink').textContent = link;
-    document.getElementById('qrLink').href = link;
+    // Data + table
+    let all = []; // all assets
+    let filtered = [];
+    let page = 1; const pageSize = 25;
 
-    try{
-      const next = (function(pm){ if(!pm) return ""; const d=new Date(pm); d.setMonth(d.getMonth()+6); return d.toISOString().slice(0,10); })(pm);
-      const { setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js');
-      await setDoc(docId, { control, site, department:dept, location:loc, tech, pm_date: pm, next_date: next, updatedAt: serverTimestamp() });
-      notify('تم الحفظ وتوليد QR بنجاح ✅', 'ok');
-    }catch(e){ notify('فشل الحفظ: ' + e.message, 'error'); }
-  };
+    function applyFilters(){
+      const q = $('#q').value.trim().toLowerCase();
+      const fs = $('#f_site').value; const fd = $('#f_dept').value; const fst = $('#f_status').value;
+      filtered = all.filter(x=>{
+        const matchQ = !q || (String(x.control||'').toLowerCase().includes(q) || String(x.tech||'').toLowerCase().includes(q));
+        const matchS = !fs || x.site===fs; const matchD = !fd || x.department===fd;
+        const st = statusOf(x.next_date||'');
+        const matchT = !fst || st.key===fst;
+        return matchQ && matchS && matchD && matchT;
+      });
+      page = 1; renderTable(); renderKPI();
+    }
 
-  // مسح
-  document.getElementById('clearBtn').onclick = ()=> clearForm();
-  // طباعة QR من قسم الإضافة
-  document.getElementById('printAddQRBtn').onclick = ()=> printQR('qrImg', document.getElementById('control').value);
-
-  // عرض جهاز
-  document.getElementById('viewBtn').onclick = async ()=>{
-    const idInput = document.getElementById('viewId').value.trim();
-    if(!idInput){ notify('اكتب الكنترول نمبر للعرض', 'error'); return; }
-    try{
-      const { doc, getDoc, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js');
-      const primaryId = (idInput||'').replace(/[\/#?\s]/g,'-');
-      let snap = await getDoc(doc(db,'assets', primaryId));
-      if(!snap.exists()){
-        const qs = await getDocs(query(collection(db,'assets'), where('control','==', idInput)));
-        snap = qs.docs[0];
+    function renderKPI(){
+      $('#kpi_total').textContent = all.length;
+      const today = new Date();
+      const ym = today.getFullYear()+''+today.getMonth();
+      let due=0, over=0, soon=0;
+      for(const x of all){
+        const st = statusOf(x.next_date||'');
+        if(st.key==='over') over++;
+        if(st.key==='soon') soon++;
+        if(x.next_date){ const d=new Date(x.next_date+'T00:00:00'); const ym2=d.getFullYear()+''+d.getMonth(); if(ym2===ym) due++; }
       }
-      if(!snap || !snap.exists()){ notify('الجهاز غير موجود', 'error'); document.getElementById('viewData').innerHTML=''; return; }
-      const d = snap.data();
-      const link = 'https://bioenga7md3del.github.io/PM-Qr-Tabuk/sticker.html#view/' + encodeURIComponent(d.control || idInput);
-      document.getElementById('viewData').innerHTML = `
-        <div>
-          <div>Control: <b>${d.control||idInput}</b></div>
-          <div>Site: ${d.site||'—'}</div>
-          <div>Department: ${d.department||'—'}</div>
-          <div>Location: ${d.location||'—'}</div>
-          <div>PM Date: ${d.pm_date||'—'}</div>
-          <div>Next Date: ${d.next_date||'—'}</div>
-          <div>Tech: ${d.tech||'—'}</div>
-          <div style="margin-top:8px"><a href="${link}" class="link" target="_blank">${link}</a></div>
-        </div>
-        <div class="qr"><img id="v_qr" alt="QR"></div>
-      `;
-      makeQR(document.getElementById('v_qr'), link);
-      document.getElementById('openSticker').href = link;
-      notify('تم تحميل بيانات الجهاز ✅', 'ok');
-    }catch(e){ notify('فشل العرض: ' + e.message, 'error'); }
-  };
+      $('#kpi_due').textContent = due; $('#kpi_over').textContent = over; $('#kpi_30').textContent = soon;
+    }
 
-  // طباعة QR من قسم العرض
-  document.getElementById('printViewQRBtn').onclick = ()=> printQR('v_qr', document.getElementById('viewId').value);
-});
-</script>
+    function renderTable(){
+      const tbody = $('#tbody'); tbody.innerHTML='';
+      const start = (page-1)*pageSize; const items = filtered.slice(start, start+pageSize);
+      for(const d of items){
+        const st = statusOf(d.next_date||'');
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-slate-800 hover:bg-slate-900/40';
+        const pm = d.pm_date||'—'; const nx = d.next_date||'—';
+        tr.innerHTML = `
+          <td class="p-3 font-bold">${d.control||'—'}</td>
+          <td class="p-3">${d.site||'—'}</td>
+          <td class="p-3">${d.department||'—'}</td>
+          <td class="p-3">${pm}</td>
+          <td class="p-3">${nx}</td>
+          <td class="p-3">${d.tech||'—'}</td>
+          <td class="p-3">${pillHtml(st)}</td>
+          <td class="p-3 flex gap-2">
+            <a href="${buildLink(d.control)}" target="_blank" class="px-2 py-1 rounded-lg bg-sky-600 text-sky-950 font-bold">استيكر</a>
+            <button class="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700" data-qr="${encodeURIComponent(buildLink(d.control))}" data-ctl="${d.control}">طباعة QR</button>
+          </td>`;
+        tbody.appendChild(tr);
+      }
+      $('#pageInfo').textContent = `${Math.min(start+1, filtered.length)}–${Math.min(start+items.length, filtered.length)} من ${filtered.length}`;
+    }
+
+    $('#prev').onclick = ()=>{ if(page>1){ page--; renderTable(); } };
+    $('#next').onclick = ()=>{ if(page*pageSize < filtered.length){ page++; renderTable(); } };
+
+    // Print QR handler
+    document.addEventListener('click', e=>{
+      const btn = e.target.closest('button[data-qr]');
+      if(!btn) return;
+      const url = decodeURIComponent(btn.dataset.qr);
+      const ctl = btn.dataset.ctl || '';
+      try {
+        QRCode.toDataURL(url, {width:200, margin:1}).then(dataUrl=>{
+          const w = window.open('', '_blank');
+          const title = ctl? `QR — ${ctl}`: 'QR';
+          w.document.write(`<!doctype html><html><head><meta charset='utf-8'><title>${title}</title>
+            <style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh}
+            .box{display:flex;flex-direction:column;align-items:center;font-family:system-ui}
+            img{width:50mm;height:50mm;} .txt{margin-top:8px;font-weight:700}</style></head><body>
+            <div class='box'><img src='${dataUrl}'/><div class='txt'>${ctl}</div></div>
+          </body></html>`);
+          w.document.close(); w.focus(); w.print(); setTimeout(()=>w.close(), 300);
+        });
+      }catch{}
+    });
+
+    // Load data
+    async function loadData(){
+      try{
+        notify('جارِ تحميل البيانات…');
+        const qs = await getDocs(query(collection(db,'assets'), orderBy('control')));
+        all = qs.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Fill filters
+        const sites = Array.from(new Set(all.map(x=>x.site).filter(Boolean))).sort();
+        const depts = Array.from(new Set(all.map(x=>x.department).filter(Boolean))).sort();
+        $('#f_site').innerHTML = '<option value="">كل المواقع</option>' + sites.map(s=>`<option>${s}</option>`).join('');
+        $('#f_dept').innerHTML = '<option value="">كل الأقسام</option>' + depts.map(s=>`<option>${s}</option>`).join('');
+        filtered = all.slice(); renderTable(); renderKPI();
+        notify('تم التحميل ✅','ok');
+      }catch(e){ notify('فشل التحميل: '+e.message,'error'); }
+    }
+
+    // Filters handlers
+    ['q','f_site','f_dept','f_status'].forEach(id=>{
+      document.getElementById(id).addEventListener('input', applyFilters);
+      document.getElementById(id).addEventListener('change', applyFilters);
+    });
+    $('#refreshBtn').onclick = loadData;
+    $('#clearFilters').onclick = ()=>{ ['q','f_site','f_dept','f_status'].forEach(id=> document.getElementById(id).value=''); applyFilters(); };
+
+    // Global error capture
+    window.addEventListener('error', e=> notify('خطأ: ' + (e.error?.message||e.message),'error'));
+    window.addEventListener('unhandledrejection', e=> notify('خطأ: ' + (e.reason?.message||e.reason),'error'));
+  </script>
 </body>
 </html>
