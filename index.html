@@ -26,6 +26,7 @@
       </div>
       <div class="flex items-center gap-2">
         <a href="import.html" class="px-3 py-2 rounded-lg bg-emerald-500 text-emerald-950 font-bold hover:opacity-90">📂 رفع ملف إكسل</a>
+        <button id="openAddBtn" class="px-3 py-2 rounded-lg bg-sky-500 text-sky-950 font-bold hover:opacity-90">➕ إضافة جهاز</button>
         <button id="signOutBtn" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700">تسجيل الخروج</button>
       </div>
     </div>
@@ -50,23 +51,6 @@
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
         <div class="text-slate-400">خلال 30 يومًا</div>
         <div id="kpi_30" class="text-3xl font-extrabold">—</div>
-      </div>
-    </section>
-
-    <!-- Add Asset Form -->
-    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6 no-print">
-      <h2 class="text-lg font-bold mb-4">➕ إضافة جهاز جديد</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-        <input id="f_control" placeholder="Control Number" class="px-3 py-2 border rounded bg-slate-950 text-white"/>
-        <input id="f_site" placeholder="الموقع (المستشفى)" class="px-3 py-2 border rounded bg-slate-950 text-white"/>
-        <input id="f_dept" placeholder="القسم" class="px-3 py-2 border rounded bg-slate-950 text-white"/>
-        <input id="f_loc" placeholder="الوصف التفصيلي (Location)" class="px-3 py-2 border rounded bg-slate-950 text-white"/>
-        <input id="f_tech" placeholder="الفني القائم بالصيانة" class="px-3 py-2 border rounded bg-slate-950 text-white"/>
-        <input id="f_pm" type="date" class="px-3 py-2 border rounded bg-slate-950 text-white"/>
-      </div>
-      <div class="flex gap-2">
-        <button id="addAssetBtn" class="px-3 py-2 bg-sky-500 text-sky-950 font-bold rounded">حفظ</button>
-        <button onclick="clearForm()" class="px-3 py-2 bg-slate-700 rounded">مسح</button>
       </div>
     </section>
 
@@ -122,26 +106,54 @@
     </section>
   </main>
 
-  <!-- Edit Modal -->
-  <div id="modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center no-print">
-    <div class="bg-white text-black rounded-lg shadow-xl w-full max-w-md p-6">
-      <h2 class="text-lg font-bold mb-4" id="modalTitle">تعديل جهاز</h2>
-      <div class="space-y-3">
-        <input id="m_control" placeholder="Control Number" class="w-full px-3 py-2 border rounded"/>
-        <input id="m_site" placeholder="الموقع" class="w-full px-3 py-2 border rounded"/>
-        <input id="m_dept" placeholder="القسم" class="w-full px-3 py-2 border rounded"/>
-        <input id="m_loc" placeholder="الوصف التفصيلي" class="w-full px-3 py-2 border rounded"/>
-        <input id="m_tech" placeholder="الفني" class="w-full px-3 py-2 border rounded"/>
-        <input id="m_pm" type="date" class="w-full px-3 py-2 border rounded"/>
+  <!-- Add Asset Modal -->
+  <div id="addModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center no-print">
+    <div class="bg-white text-black rounded-lg shadow-xl w-full max-w-2xl p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold">إضافة جهاز جديد</h2>
+        <button id="closeAdd" class="px-3 py-1 rounded bg-gray-200">✕</button>
       </div>
-      <div class="flex justify-end gap-2 mt-4">
-        <button id="cancelModal" class="px-3 py-2 bg-gray-300 rounded">إلغاء</button>
-        <button id="saveBtn" class="px-3 py-2 bg-sky-500 text-white rounded">حفظ</button>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        <input id="a_control" placeholder="Control Number" class="w-full px-3 py-2 border rounded"/>
+        <!-- datalist suggestions -->
+        <input id="a_site" placeholder="الموقع (المستشفى)" class="w-full px-3 py-2 border rounded" list="sitesList"/>
+        <input id="a_dept" placeholder="القسم" class="w-full px-3 py-2 border rounded" list="deptsList"/>
+        <input id="a_loc" placeholder="الوصف التفصيلي (Location)" class="w-full px-3 py-2 border rounded"/>
+        <input id="a_tech" placeholder="الفني القائم بالصيانة" class="w-full px-3 py-2 border rounded"/>
+        <input id="a_pm" type="date" class="w-full px-3 py-2 border rounded"/>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button id="saveAdd" class="px-4 py-2 rounded bg-sky-600 text-white font-bold">حفظ</button>
       </div>
     </div>
   </div>
 
-  <!-- QR lib for print helper (optional local QR, مش لازم هنا) -->
+  <!-- Edit Asset Modal -->
+  <div id="editModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center no-print">
+    <div class="bg-white text-black rounded-lg shadow-xl w-full max-w-2xl p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold">تعديل جهاز</h2>
+        <button id="closeEdit" class="px-3 py-1 rounded bg-gray-200">✕</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        <input id="m_control" placeholder="Control Number" class="w-full px-3 py-2 border rounded"/>
+        <input id="m_site" placeholder="الموقع (المستشفى)" class="w-full px-3 py-2 border rounded" list="sitesList"/>
+        <input id="m_dept" placeholder="القسم" class="w-full px-3 py-2 border rounded" list="deptsList"/>
+        <input id="m_loc" placeholder="الوصف التفصيلي (Location)" class="w-full px-3 py-2 border rounded"/>
+        <input id="m_tech" placeholder="الفني القائم بالصيانة" class="w-full px-3 py-2 border rounded"/>
+        <input id="m_pm" type="date" class="w-full px-3 py-2 border rounded"/>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button id="saveEdit" class="px-4 py-2 rounded bg-sky-600 text-white font-bold">حفظ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- datalist sources (shared by add/edit) -->
+  <datalist id="sitesList"></datalist>
+  <datalist id="deptsList"></datalist>
+
+  <!-- QR lib optional (للطباعة في نافذة منفصلة نفتح sticker.html) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 
   <!-- Firebase + App logic -->
@@ -178,7 +190,7 @@
     const addMonths=(d,m)=>{const x=new Date(d); x.setMonth(x.getMonth()+m); return x};
     const calcNext=pm=>pm? toISO(addMonths(pm,6)):'';
     const safeId=s=>String(s||'').trim().replace(/[\/?#\s]+/g,'-');
-    const buildStickerLink = control => `sticker.html#view/${encodeURIComponent(control)}`
+    const buildStickerLink = control => `sticker.html#view/${encodeURIComponent(control)}`;
     function statusOf(nextISO){
       if(!nextISO) return {key:'over',label:'—',cls:'pill-bad'};
       const today=new Date();
@@ -200,44 +212,33 @@
     });
     $('#signOutBtn').onclick = ()=> signOut(auth).then(()=> location.href='login.html');
 
-    // ===== Add Asset (top form) =====
-    $('#addAssetBtn').onclick = async ()=>{
-      const control = $('#f_control').value.trim();
-      if(!control){ notify('ادخل Control Number','error'); return; }
-      const data = {
-        control,
-        site: $('#f_site').value.trim(),
-        department: $('#f_dept').value.trim(),
-        location: $('#f_loc').value.trim(),
-        tech: $('#f_tech').value.trim(),
-        pm_date: $('#f_pm').value || '',
-      };
-      data.next_date = data.pm_date ? calcNext(new Date(data.pm_date)) : '';
-      try{
-        await setDoc(doc(db,'assets', safeId(control)), {...data, updatedAt: serverTimestamp()});
-        notify('تم الحفظ ✅','ok');
-        clearForm(); await loadData();
-      }catch(e){ notify('فشل الحفظ: '+e.message,'error'); }
-    };
-    window.clearForm = ()=> ['f_control','f_site','f_dept','f_loc','f_tech','f_pm'].forEach(id=> $('#'+id).value='');
-
-    // ===== Table state / pagination / filters =====
-    let all = [];     // كل الأجهزة
-    let filtered = []; // بعد الفلاتر
+    // ===== State =====
+    let all = [];
+    let filtered = [];
     let page = 1; const pageSize = 20;
+    let editingId = null;
 
+    // ===== Fill filters + datalist from data =====
     function fillFilterOptions(){
       const sites = Array.from(new Set(all.map(x=>x.site).filter(Boolean))).sort();
       const depts = Array.from(new Set(all.map(x=>x.department).filter(Boolean))).sort();
+
+      // Filters
       $('#filter_site').innerHTML = '<option value="">كل المواقع</option>' + sites.map(s=>`<option>${s}</option>`).join('');
       $('#filter_dept').innerHTML = '<option value="">كل الأقسام</option>' + depts.map(s=>`<option>${s}</option>`).join('');
+
+      // datalist suggestions
+      $('#sitesList').innerHTML = sites.map(s=>`<option value="${s}"></option>`).join('');
+      $('#deptsList').innerHTML = depts.map(s=>`<option value="${s}"></option>`).join('');
     }
 
+    // ===== Filters / KPI / Table / Pagination =====
     function applyFilters(){
       const q = $('#q').value.trim().toLowerCase();
       const fs = $('#filter_site').value;
       const fd = $('#filter_dept').value;
       const fstatus = $('#filter_status').value;
+
       filtered = all.filter(x=>{
         const matchQ = !q || (String(x.control||'').toLowerCase().includes(q) || String(x.tech||'').toLowerCase().includes(q));
         const matchS = !fs || x.site===fs;
@@ -273,12 +274,12 @@
       const tbody = $('#tbody'); tbody.innerHTML='';
       const start = (page-1)*pageSize;
       const items = filtered.slice(start, start+pageSize);
+
       for(const d of items){
         const st = statusOf(d.next_date||'');
         const tr = document.createElement('tr');
         tr.className = 'border-b border-slate-800 hover:bg-slate-900/40';
 
-        // خلايا البيانات
         tr.innerHTML = `
           <td class="p-3 font-bold">${d.control||'—'}</td>
           <td class="p-3">${d.site||'—'}</td>
@@ -291,22 +292,22 @@
           <td class="p-3"><div class="flex flex-wrap gap-2"></div></td>
         `;
 
-        // أدوات (نضيفها كعناصر لضمان سلامة القيم)
         const tools = tr.querySelector('div');
+
         // ✏️ تعديل
         const btnEdit = document.createElement('button');
         btnEdit.className = 'px-2 py-1 rounded bg-sky-500 text-sky-950 font-bold';
         btnEdit.textContent = '✏️ تعديل';
-        btnEdit.dataset.id = d.id || safeId(d.control||'');
+        btnEdit.dataset.edit = d.id || safeId(d.control||'');
         btnEdit.dataset.control = encodeURIComponent(d.control||'');
-        btnEdit.dataset.site = encodeURIComponent(d.site||'');
-        btnEdit.dataset.dept = encodeURIComponent(d.department||'');
-        btnEdit.dataset.loc = encodeURIComponent(d.location||'');
-        btnEdit.dataset.tech = encodeURIComponent(d.tech||'');
-        btnEdit.dataset.pm = encodeURIComponent(d.pm_date||'');
+        btnEdit.dataset.site    = encodeURIComponent(d.site||'');
+        btnEdit.dataset.dept    = encodeURIComponent(d.department||'');
+        btnEdit.dataset.loc     = encodeURIComponent(d.location||'');
+        btnEdit.dataset.tech    = encodeURIComponent(d.tech||'');
+        btnEdit.dataset.pm      = encodeURIComponent(d.pm_date||'');
         tools.appendChild(btnEdit);
 
-        // ✅ تم عمل الصيانة (يظهر دايمًا – تقدر تخليه يظهر بس لو due/over)
+        // ✅ تم عمل الصيانة
         const btnQuick = document.createElement('button');
         btnQuick.className = 'px-2 py-1 rounded bg-emerald-500 text-emerald-950 font-bold';
         btnQuick.textContent = '✅ تم عمل الصيانة';
@@ -330,43 +331,70 @@
 
         tbody.appendChild(tr);
       }
-      // الصفحة
-      const end = Math.min(start+items.length, filtered.length);
-      $('#pageInfo').textContent = filtered.length? `${start+1}–${end} من ${filtered.length}` : 'لا توجد بيانات';
+
+      const end = Math.min(start + items.length, filtered.length);
+      $('#pageInfo').textContent = filtered.length ? `${start+1}–${end} من ${filtered.length}` : 'لا توجد بيانات';
     }
 
-    // تنقّل الصفحات
+    // Pagination
     $('#prev').onclick = ()=>{ if(page>1){ page--; renderTable(); } };
     $('#next').onclick = ()=>{ if(page*pageSize < filtered.length){ page++; renderTable(); } };
 
-    // فلترة
+    // Filters events
     ['q','filter_site','filter_dept','filter_status'].forEach(id=>{
-      const el = document.getElementById(id);
+      const el=document.getElementById(id);
       el.addEventListener('input', applyFilters);
       el.addEventListener('change', applyFilters);
     });
     $('#refreshBtn').onclick = loadData;
     $('#clearFilters').onclick = ()=>{ ['q','filter_site','filter_dept','filter_status'].forEach(id=> document.getElementById(id).value=''); applyFilters(); };
 
-    // ===== Edit modal logic =====
-    const modal = $('#modal');
-    const openModal = ()=>{ modal.classList.remove('hidden'); };
-    const closeModal = ()=>{ modal.classList.add('hidden'); };
-    $('#cancelModal').onclick = closeModal;
+    // ===== Add Modal events =====
+    const addModal = $('#addModal');
+    const openAdd  = ()=>{ addModal.classList.remove('hidden'); addModal.classList.add('flex'); };
+    const closeAdd = ()=>{ addModal.classList.add('hidden'); addModal.classList.remove('flex'); };
+    $('#openAddBtn').onclick = openAdd;
+    $('#closeAdd').onclick   = closeAdd;
 
-    let editingId = null;
+    $('#saveAdd').onclick = async ()=>{
+      const control = $('#a_control').value.trim();
+      if(!control){ notify('أدخل Control Number','error'); return; }
+      const data = {
+        control,
+        site: $('#a_site').value.trim(),
+        department: $('#a_dept').value.trim(),
+        location: $('#a_loc').value.trim(),
+        tech: $('#a_tech').value.trim(),
+        pm_date: $('#a_pm').value || '',
+      };
+      data.next_date = data.pm_date ? calcNext(new Date(data.pm_date)) : '';
+      try{
+        await setDoc(doc(db,'assets', safeId(control)), {...data, updatedAt: serverTimestamp()});
+        notify('تم الحفظ ✅','ok');
+        closeAdd();
+        await loadData();
+      }catch(e){ notify('فشل الحفظ: '+e.message,'error'); }
+    };
+
+    // ===== Edit Modal events (delegation) =====
+    const editModal = $('#editModal');
+    const openEdit  = ()=>{ editModal.classList.remove('hidden'); editModal.classList.add('flex'); };
+    const closeEdit = ()=>{ editModal.classList.add('hidden'); editModal.classList.remove('flex'); };
+    $('#closeEdit').onclick = closeEdit;
+
     document.addEventListener('click', async (e)=>{
-      // تعديل
-      const be = e.target.closest('button[data-id]');
+      // فتح التعديل
+      const be = e.target.closest('button[data-edit]');
       if(be){
-        editingId = be.dataset.id;
+        const id = be.dataset.edit;
+        editingId = id;
         $('#m_control').value = decodeURIComponent(be.dataset.control||'');
         $('#m_site').value    = decodeURIComponent(be.dataset.site||'');
         $('#m_dept').value    = decodeURIComponent(be.dataset.dept||'');
         $('#m_loc').value     = decodeURIComponent(be.dataset.loc||'');
         $('#m_tech').value    = decodeURIComponent(be.dataset.tech||'');
         $('#m_pm').value      = decodeURIComponent(be.dataset.pm||'');
-        openModal();
+        openEdit();
         return;
       }
 
@@ -393,7 +421,7 @@
       }
     });
 
-    $('#saveBtn').onclick = async ()=>{
+    $('#saveEdit').onclick = async ()=>{
       const control = $('#m_control').value.trim();
       if(!control){ notify('أدخل Control Number','error'); return; }
       const data = {
@@ -409,15 +437,15 @@
       try{
         await setDoc(doc(db,'assets', id), {...data, updatedAt: serverTimestamp()});
         notify('تم الحفظ ✅','ok');
-        closeModal();
+        closeEdit();
         await loadData();
       }catch(e){ notify('فشل الحفظ: '+e.message,'error'); }
     };
 
     // ===== Print sticker in a clean window =====
-    // يفتح نافذة فيها iframe للـ sticker.html ويطبعها عند التحميل
     function printSticker(control){
-      const url = buildStickerLink(control) + '&autoprint=1';
+      // خلي autoprint=1 في الـ search لتلتقطها sticker.html
+      const url = `sticker.html?autoprint=1#view/${encodeURIComponent(control)}`;
       const w = window.open('', '_blank', 'width=900,height=600');
       if(!w){ notify('يبدو أن المتصفح منع فتح النافذة. اسمح بالنوافذ المنبثقة.','error'); return; }
       w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>طباعة الاستيكر</title>
@@ -449,7 +477,7 @@
       }catch(e){ notify('فشل التحميل: '+e.message,'error'); }
     }
 
-    // أخطاء عامة
+    // Global errors
     window.addEventListener('error', e=> notify('خطأ: '+(e.error?.message||e.message),'error'));
     window.addEventListener('unhandledrejection', e=> notify('خطأ: '+(e.reason?.message||e.reason),'error'));
   </script>
