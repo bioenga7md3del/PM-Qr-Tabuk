@@ -4,13 +4,11 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>PM-QR – Sticker</title>
-<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <style>
   :root{ --ink:#111827; --muted:#6b7280; --line:#e5e7eb; }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;background:#f7fafc;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
   .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:8px}
-  /* بطاقة بحجم كارت الهوية CR80: 85.6mm × 54mm */
   .sticker{background:#fff;border:1px solid var(--line);border-radius:6px;width:85.6mm;height:54mm;max-width:100%;padding:4mm 5mm;box-shadow:0 8px 24px rgba(0,0,0,.08);display:grid;grid-template-rows:14mm 1fr}
   .head{display:flex;align-items:center;justify-content:space-between;gap:6px}
   .head img{height:10mm;object-fit:contain}
@@ -30,9 +28,9 @@
 <div class="wrap">
   <div class="sticker" id="sticker">
     <div class="head">
-      <img id="logoCompany" src="https://ga7md3del.github.io/assets/FGC.jpeg" alt="الخليجية"/>
+      <img id="logoCompany" src="./assets/FGC.jpeg" alt="الخليجية" onerror="this.style.display='none'"/>
       <div class="title">صيانة وقائية</div>
-      <img id="logoCluster" src="https://ga7md3del.github.io/assets/TabukCluster.jpeg" alt="تجمع تبوك"/>
+      <img id="logoCluster" src="./assets/TabukCluster.jpeg" alt="تجمع تبوك" onerror="this.style.display='none'"/>
     </div>
     <div class="body">
       <div class="kv">
@@ -45,7 +43,7 @@
       </div>
       <div class="qr"><img id="qr" alt="QR" style="width:100%;height:100%;object-fit:contain"/></div>
     </div>
-    <div class="meta" id="meta">&nbsp;</div>" id="meta"></div>
+    <div class="meta" id="meta">&nbsp;</div>
   </div>
 </div>
 <div class="toolbar">
@@ -53,13 +51,11 @@
   <button class="btn" id="copyBtn">نسخ رابط المسح</button>
 </div>
 
-<!-- QR lib -->
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
-/* ===== Firebase Config (ثابت) ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
   authDomain: "pmqrtabuk.firebaseapp.com",
@@ -71,54 +67,43 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-/* ===== Helpers ===== */
-const $ = s => document.querySelector(s);
+const $   = s => document.querySelector(s);
 const fmt = d => d ? new Date(d).toLocaleDateString('ar-SA') : '—';
 const safeId = s => (s||'').trim().replace(/[\/#?\s]/g,'-');
+
 function currentStickerLink(control){
-  // اجعل QR يشير إلى هذه الصفحة نفسها
-  const base = location.origin + location.pathname;
-  return `${base}#view/${encodeURIComponent(control)}`;
+  return 'https://bioenga7md3del.github.io/PM-Qr-Tabuk/sticker.html#view/' + encodeURIComponent(control);
 }
 
-/* ===== Logos from localStorage (لو موجودة) ===== */
-$('#logoCompany').src = localStorage.getItem('pmqr_company_logo') || '';
-$('#logoCluster').src = localStorage.getItem('pmqr_cluster_logo') || '';
-
-/* ===== Load data by hash ===== */
 async function loadSticker(){
-  const parts = (location.hash||'').split('/');
-  const controlRaw = parts[1] ? decodeURIComponent(parts[1]) : '';
-  if(!controlRaw){ $('#meta').textContent = 'لا يوجد رقم جهاز في الرابط'; return; }
+  const hash = (location.hash||'').trim();
+  if(!hash.startsWith('#view/')){ $('#meta').textContent='لا يوجد رقم جهاز في الرابط'; return; }
+  const controlRaw = decodeURIComponent(hash.slice(6));
+  if(!controlRaw){ $('#meta').textContent='لا يوجد رقم جهاز في الرابط'; return; }
 
-  // 1) جرّب بالـ docId الآمن
   let snap = await getDoc(doc(db,'assets', safeId(controlRaw)));
   if(!snap.exists()){
-    // 2) fallback بالبحث على حقل control
     const qs = await getDocs(query(collection(db,'assets'), where('control','==', controlRaw)));
     snap = qs.docs[0];
   }
-  if(!snap || !snap.exists()){ $('#meta').textContent = 'الجهاز غير موجود'; return; }
+  if(!snap || !snap.exists()){ $('#meta').textContent='الجهاز غير موجود'; return; }
   const d = snap.data();
 
-  // املأ القيم
   $('#v_control').textContent = d.control || controlRaw;
-  $('#v_pm').textContent = fmt(d.pm_date);
-  $('#v_next').textContent = fmt(d.next_date);
-  $('#v_tech').textContent = d.tech || '—';
-  $('#v_site').textContent = d.site || '—';
-  $('#v_dept').textContent = d.department || '—';
-  $('#meta').textContent = '';
+  $('#v_pm').textContent      = fmt(d.pm_date);
+  $('#v_next').textContent    = fmt(d.next_date);
+  $('#v_tech').textContent    = d.tech || '—';
+  $('#v_site').textContent    = d.site || '—';
+  $('#v_dept').textContent    = d.department || '—';
+  $('#meta').textContent      = '';
 
-  // ولّد QR للرابط الحالي
   const link = currentStickerLink(d.control || controlRaw);
   QRCode.toDataURL(link, {width: 400, margin: 1})
     .then(url => { $('#qr').src = url; })
     .catch(()=>{ $('#qr').src = 'https://chart.googleapis.com/chart?cht=qr&chs=400x400&chl=' + encodeURIComponent(link); });
 
-  // copy button
   $('#copyBtn').onclick = async ()=>{
-    try{ await navigator.clipboard.writeText(link); $('#copyBtn').textContent = 'تم النسخ ✅'; setTimeout(()=>$('#copyBtn').textContent='نسخ رابط المسح',1200); }catch{}
+    try{ await navigator.clipboard.writeText(link); $('#copyBtn').textContent='تم النسخ ✅'; setTimeout(()=>$('#copyBtn').textContent='نسخ رابط المسح',1200); }catch{}
   };
 }
 
