@@ -6,84 +6,47 @@
 <title>PM-QR – Sticker</title>
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <style>
-  :root{
-    --ink:#111827; --muted:#6b7280; --line:#e5e7eb;
-    --active:#ecfdf5;  /* أخضر فاتح عندما يكون ساري */
-  }
+  :root{ --ink:#111827; --muted:#6b7280; --line:#e5e7eb; --danger:#ef4444; --okbg:#ecfdf5; }
   *{box-sizing:border-box}
-  html,body{
-    margin:0;padding:0;background:#f7fafc;color:#000;
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact;
-  }
+  html,body{margin:0;padding:0;background:#f7fafc;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
   .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:8px}
-
   /* بطاقة بحجم كارت الهوية CR80: 85.6mm × 54mm */
-  .sticker{
-    position:relative;
-    background:#fff;       /* أبيض دائمًا كافتراضي */
-    color:#000;            /* كل النصوص أسود */
-    border:1px solid var(--line);
-    border-radius:6px;
-    width:85.6mm; height:54mm; max-width:100%;
-    padding:4mm 5mm; box-shadow:0 8px 24px rgba(0,0,0,.08);
-    display:grid; grid-template-rows:14mm 1fr auto;
-    overflow:hidden;
-    transition:background-color .2s ease;
-  }
-  /* ساري: أخضر فاتح */
-  .sticker.active{ background:var(--active); }
-
-  /* العلامة المائية عند الانتهاء */
-  .watermark{
-    position:absolute; inset:0; pointer-events:none;
-    display:flex; align-items:center; justify-content:center;
-    font-weight:900; font-size:28mm; letter-spacing:2px;
-    opacity:.16; color:#dc2626;      /* أحمر واضح */
-    transform:rotate(-18deg);
-    user-select:none;
-  }
-
+  .sticker{position:relative;background:#fff;border:1px solid var(--line);border-radius:6px;width:85.6mm;height:54mm;max-width:100%;padding:4mm 5mm;box-shadow:0 8px 24px rgba(0,0,0,.08);display:grid;grid-template-rows:14mm 1fr}
   .head{display:flex;align-items:center;justify-content:space-between;gap:6px}
-  .head img{height:9mm;object-fit:contain}
-  .title{font-weight:900;font-size:12.5px}
-
+  .head img{height:10mm;object-fit:contain}
+  .title{font-weight:800;font-size:11px;color:#111} /* أسود */
   .body{display:grid;grid-template-columns:1fr 22mm;gap:4mm;align-items:center}
   .qr{width:22mm;height:22mm;border-radius:4px;background:#fff;display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
-  .kv{display:grid;grid-template-columns:44% 56%;column-gap:3mm;row-gap:1.6mm;font-size:10.5px}
-  .k{color:var(--muted)} .v{font-weight:700}
-  .meta{margin-top:2mm;color:var(--muted);font-size:9.5px;min-height:10px}
+  .kv{display:grid;grid-template-columns:44% 56%;column-gap:3mm;row-gap:1.6mm;font-size:10.5px;color:#111} /* نص أسود */
+  .k{color:var(--muted)} .v{font-weight:700;color:#111}
+  .meta{margin-top:2mm;color:var(--muted);font-size:9.5px}
+  /* ختم "منتهي" */
+  .expired::after{
+    content:"منتهي";
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--danger);
+    font-weight:900; font-size:22mm;
+    opacity:0.12; transform:rotate(-20deg);
+    pointer-events:none;
+  }
+  /* خلفية سارية اختيارية خفيفة */
+  .active{ background: #f5fffb; }
 
   .toolbar{position:fixed;inset:auto 8px 8px 8px;display:flex;gap:8px;justify-content:center}
   .btn{padding:10px 14px;border:1px solid var(--line);background:#fff;border-radius:10px;font-weight:700;cursor:pointer}
-
-  /* موبايل */
-  @media (max-width:480px){
-    .sticker{width:92vw;height:auto;grid-template-rows:auto auto auto}
-    .body{grid-template-columns:1fr}
-    .qr{justify-self:center}
-  }
-
-  @media print{
-    body{background:#fff}
-    .toolbar{display:none}
-    .wrap{padding:0}
-    .sticker{box-shadow:none;margin:0 auto}
-  }
+  @media (max-width:480px){ .sticker{width:92vw;height:auto;grid-template-rows:auto auto} .body{grid-template-columns:1fr} .qr{justify-self:center} }
+  @media print{ body{background:#fff} .toolbar{display:none} .wrap{padding:0} .sticker{box-shadow:none;margin:0 auto} }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="sticker" id="sticker">
-    <!-- Watermark (تظهر فقط عند الانتهاء) -->
-    <div id="wm" class="watermark" style="display:none">منتهي</div>
-
     <div class="head">
-      <img id="logoCompany" src="FGC.jpeg" alt="الخليجية"/>
+      <img id="logoCompany" src="FGC.jpeg" alt="الخليجية" onerror="this.style.display='none'"/>
       <div class="title">صيانة وقائية</div>
-      <img id="logoCluster" src="TabukCluster.jpeg" alt="تجمع تبوك"/>
+      <img id="logoCluster" src="TabukCluster.jpeg" alt="تجمع تبوك" onerror="this.style.display='none'"/>
     </div>
-
     <div class="body">
       <div class="kv">
         <div class="k">Control Number</div><div class="v" id="v_control">—</div>
@@ -95,11 +58,9 @@
       </div>
       <div class="qr"><img id="qr" alt="QR" style="width:100%;height:100%;object-fit:contain"/></div>
     </div>
-
     <div class="meta" id="meta">&nbsp;</div>
   </div>
 </div>
-
 <div class="toolbar">
   <button class="btn" onclick="window.print()">طباعة</button>
   <button class="btn" id="copyBtn">نسخ رابط المسح</button>
@@ -125,105 +86,81 @@ const db = getFirestore(app);
 
 /* ===== Helpers ===== */
 const $ = s => document.querySelector(s);
-const fmt = d => d ? new Date(d).toLocaleDateString('en-GB') : '—'; // MILADI ثابت
+const fmt = d => d ? new Date(d).toLocaleDateString('en-GB') : '—'; // ميلادي بصيغة يوم/شهر/سنة
 const safeId = s => (s||'').trim().replace(/[\/#?\s]/g,'-');
 function currentStickerLink(control){
   const base = location.origin + location.pathname;
   return `${base}#view/${encodeURIComponent(control)}`;
 }
 
-/* الحالة: منتهي (PM + 30 يوم) = watermark فقط / ساري = أخضر فاتح */
-function applyStickerState(pmDateStr, nextDateStr){
-  const card = $('#sticker');
-  const wm   = $('#wm');
-  // reset
-  card.classList.remove('active');
-  wm.style.display = 'none';
-  card.style.background = '#fff'; // أبيض دائمًا كأساس
-
-  if(!pmDateStr) return;
-
-  const today = new Date();
-  const pm    = new Date(pmDateStr + 'T00:00:00');
-  const next  = nextDateStr ? new Date(nextDateStr + 'T00:00:00') : null;
-
-  // PM + 30 يوم
-  const pmPlus30 = new Date(pm);
-  pmPlus30.setDate(pmPlus30.getDate() + 30);
-
-  // منتهي: أظهر العلامة المائية فقط (خلفية تبقى بيضاء)
-  if(today >= pmPlus30){
-    wm.style.display = 'flex';
-    return;
-  }
-  // ساري: بين PM و Next
-  if(next && today >= pm && today <= next){
-    card.classList.add('active'); // أخضر فاتح
-  }
+// منطق الحالة (Next PM + شهر)
+function isExpired(pmISO, nextISO){
+  if(!nextISO) return true;
+  const today    = new Date();
+  const nextDate = new Date(nextISO + 'T00:00:00');
+  const grace    = new Date(nextDate); grace.setMonth(grace.getMonth()+1);
+  return today > grace;
+}
+function isActive(pmISO, nextISO){
+  if(!pmISO || !nextISO) return false;
+  const today    = new Date();
+  const pmDate   = new Date(pmISO   + 'T00:00:00');
+  const nextDate = new Date(nextISO + 'T00:00:00');
+  const grace    = new Date(nextDate); grace.setMonth(grace.getMonth()+1);
+  return (today >= pmDate && today <= grace);
 }
 
-/* تحميل شعارات من localStorage لو موجود */
-const lc  = localStorage.getItem('pmqr_company_logo');
-const lcl = localStorage.getItem('pmqr_cluster_logo');
-if(lc)  $('#logoCompany').src = lc;
-if(lcl) $('#logoCluster').src = lcl;
-
-/* ===== تحميل البيانات من الهـاش ===== */
+/* ===== Load data by hash ===== */
 async function loadSticker(){
+  // شعارين من localStorage (لو حابب تغيّر المسارات بدون تعديل الكود)
+  const lc = localStorage.getItem('pmqr_company_logo');
+  const lh = localStorage.getItem('pmqr_cluster_logo');
+  if(lc) $('#logoCompany').src = lc;
+  if(lh) $('#logoCluster').src = lh;
+
   const parts = (location.hash||'').split('/');
   const controlRaw = parts[1] ? decodeURIComponent(parts[1]) : '';
   if(!controlRaw){ $('#meta').textContent = 'لا يوجد رقم جهاز في الرابط'; return; }
 
-  // جرّب docId الآمن أولًا
+  // 1) جرّب بالـ docId الآمن
   let snap = await getDoc(doc(db,'assets', safeId(controlRaw)));
   if(!snap.exists()){
-    // بحث بالحقل control كـ fallback
+    // 2) fallback بالبحث على حقل control
     const qs = await getDocs(query(collection(db,'assets'), where('control','==', controlRaw)));
     snap = qs.docs[0];
   }
   if(!snap || !snap.exists()){ $('#meta').textContent = 'الجهاز غير موجود'; return; }
   const d = snap.data();
 
-  const control = d.control || controlRaw;
-  const pm      = d.pm_date || '';
-  const next    = d.next_date || '';
-
-  // تعبئة الحقول
-  $('#v_control').textContent = control;
-  $('#v_pm').textContent      = fmt(pm);
-  $('#v_next').textContent    = fmt(next);
+  // املأ القيم
+  $('#v_control').textContent = d.control || controlRaw;
+  $('#v_pm').textContent      = fmt(d.pm_date);
+  $('#v_next').textContent    = fmt(d.next_date);
   $('#v_tech').textContent    = d.tech || '—';
   $('#v_site').textContent    = d.site || '—';
   $('#v_dept').textContent    = d.department || '—';
-  $('#meta').textContent      = '';
+  $('#meta').textContent = '';
 
-  // حالة البطاقة (ساري/منتهي)
-  applyStickerState(pm, next);
+  // حالات الخلفية/الختم
+  const st = $('#sticker');
+  st.classList.remove('expired','active');
+  if(isExpired(d.pm_date, d.next_date)) st.classList.add('expired');
+  else if(isActive(d.pm_date, d.next_date)) st.classList.add('active');
 
-  // توليد QR لرابط نفس الصفحة مع الـ control
-  const link = currentStickerLink(control);
-  try{
-    const url = await QRCode.toDataURL(link, {width: 400, margin: 1});
-    $('#qr').src = url;
-  }catch{
-    $('#qr').src = 'https://chart.googleapis.com/chart?cht=qr&chs=400x400&chl=' + encodeURIComponent(link);
-  }
+  // ولّد QR للرابط الحالي (يرجع لنفس صفحة الاستيكر)
+  const link = currentStickerLink(d.control || controlRaw);
+  QRCode.toDataURL(link, {width: 400, margin: 1})
+    .then(url => { $('#qr').src = url; })
+    .catch(()=>{ $('#qr').src = 'https://chart.googleapis.com/chart?cht=qr&chs=400x400&chl=' + encodeURIComponent(link); });
 
-  // نسخ الرابط
+  // copy button
   $('#copyBtn').onclick = async ()=>{
-    try{
-      await navigator.clipboard.writeText(link);
-      const btn = document.getElementById('copyBtn');
-      const old = btn.textContent;
-      btn.textContent = 'تم النسخ ✅';
-      setTimeout(()=> btn.textContent = old, 1200);
-    }catch{}
+    try{ await navigator.clipboard.writeText(link); $('#copyBtn').textContent = 'تم النسخ ✅'; setTimeout(()=>$('#copyBtn').textContent='نسخ رابط المسح',1200); }catch{}
   };
 
-  // طباعة تلقائية لو ?autoprint=1
-  if(new URLSearchParams(location.search).get('autoprint') === '1'){
-    setTimeout(()=> window.print(), 300);
-  }
+  // autoprint
+  const ap = new URLSearchParams(location.search).get('autoprint');
+  if(ap==='1') setTimeout(()=>window.print(), 400);
 }
 
 window.addEventListener('hashchange', loadSticker);
