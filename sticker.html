@@ -8,37 +8,58 @@
 <style>
   :root{
     --ink:#111827; --muted:#6b7280; --line:#e5e7eb;
-    --ok:#ecfdf5;      /* أخضر فاتح */
-    --over:#fee2e2;    /* أحمر فاتح */
-    --base:#ffffff;    /* أبيض افتراضي */
+    --ok:#ecfdf5;        /* أخضر فاتح */
+    --over:#7f1d1d;      /* أحمر غامق */
+    --over-fg:#fecaca;   /* نص فاتح على الأحمر */
+    --base:#ffffff;      /* أبيض افتراضي */
   }
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0;background:#f7fafc;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  html,body{
+    margin:0;padding:0;background:#f7fafc;color:var(--ink);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
   .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:8px}
 
   /* بطاقة بحجم كارت الهوية CR80: 85.6mm × 54mm */
   .sticker{
+    position:relative;
     background:var(--base);
     border:1px solid var(--line);
     border-radius:6px;
     width:85.6mm; height:54mm; max-width:100%;
     padding:4mm 5mm; box-shadow:0 8px 24px rgba(0,0,0,.08);
     display:grid; grid-template-rows:14mm 1fr auto;
-    transition:background-color .2s ease;
+    transition:background-color .2s ease, color .2s ease, border-color .2s ease;
+    overflow:hidden;
   }
+  /* طبقة الصورة المائية */
+  .watermark{
+    position:absolute; inset:0; pointer-events:none;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:900; font-size:28mm; letter-spacing:2px;
+    opacity:.14; color:#b91c1c; /* أحمر */
+    transform:rotate(-18deg);
+    user-select:none;
+  }
+  .sticker.overdue{ background:var(--over); border-color:#5b1111; color:var(--over-fg) }
+  .sticker.overdue .k{ color:#ffe4e6 }      /* مفاتيح */
+  .sticker.overdue .qr{ border-color:#fda4af }
+  .sticker.overdue .head .title{ color:#fff }
 
   .head{display:flex;align-items:center;justify-content:space-between;gap:6px}
-  .head img{height:10mm;object-fit:contain}
-  .title{font-weight:900;font-size:12.5px} /* تكبير العنوان */
+  .head img{height:9mm;object-fit:contain}
+  .title{font-weight:900;font-size:12.5px}
 
   .body{display:grid;grid-template-columns:1fr 22mm;gap:4mm;align-items:center}
   .qr{width:22mm;height:22mm;border-radius:4px;background:#fff;display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
   .kv{display:grid;grid-template-columns:44% 56%;column-gap:3mm;row-gap:1.6mm;font-size:10.5px}
   .k{color:var(--muted)} .v{font-weight:700}
   .meta{margin-top:2mm;color:var(--muted);font-size:9.5px;min-height:10px}
+  .sticker.overdue .meta{ color:#fee2e2 }
 
   .toolbar{position:fixed;inset:auto 8px 8px 8px;display:flex;gap:8px;justify-content:center}
-  .btn{padding:10px 14px;border:1px solid var(--line);background:#fff;border-radius:10px;font-weight:700;cursor:pointer}
+  .btn{padding:10px 14px;border:1px solid #e5e7eb;background:#fff;border-radius:10px;font-weight:700;cursor:pointer}
 
   /* أحجام صغيرة للموبايل */
   @media (max-width:480px){
@@ -58,11 +79,13 @@
 <body>
 <div class="wrap">
   <div class="sticker" id="sticker">
+    <!-- Watermark (تظهر فقط عند الانتهاء) -->
+    <div id="wm" class="watermark" style="display:none">منتهي</div>
+
     <div class="head">
-      <!-- اضبط أحجام اللوجوهات بحيث تكون متوازنة -->
-      <img id="logoCompany" src="FGC.jpeg" alt="الخليجية" style="height:9mm"/>
+      <img id="logoCompany" src="https://ga7md3del.github.io/assets/FGC.jpeg" alt="الخليجية"/>
       <div class="title">صيانة وقائية</div>
-      <img id="logoCluster" src="TabukCluster.jpeg" alt="تجمع تبوك" style="height:9mm"/>
+      <img id="logoCluster" src="https://ga7md3del.github.io/assets/TabukCluster.jpeg" alt="تجمع تبوك"/>
     </div>
 
     <div class="body">
@@ -106,30 +129,29 @@ const db = getFirestore(app);
 
 /* ===== Helpers ===== */
 const $ = s => document.querySelector(s);
-// صيغة ميلادي ثابتة (يوم/شهر/سنة)
-const fmt = d => d ? new Date(d).toLocaleDateString('en-GB') : '—';
+const fmt = d => d ? new Date(d).toLocaleDateString('en-GB') : '—'; // MILADI ثابت
 const safeId = s => (s||'').trim().replace(/[\/#?\s]/g,'-');
 function currentStickerLink(control){
   const base = location.origin + location.pathname;
   return `${base}#view/${encodeURIComponent(control)}`;
 }
 const addDays = (date, n)=>{ const d=new Date(date); d.setDate(d.getDate()+n); return d; };
-const toISO = d => new Date(d).toISOString().slice(0,10);
 
-/* ===== Load logos from localStorage if provided ===== */
-const lc = localStorage.getItem('pmqr_company_logo');
-const lcl = localStorage.getItem('pmqr_cluster_logo');
-if(lc) $('#logoCompany').src = lc;
-if(lcl) $('#logoCluster').src = lcl;
-
-/* ===== Color logic =====
-   - أحمر: مرّ 30 يوم أو أكثر بعد PM Date.
-   - أخضر: اليوم بين PM Date و Next PM ولم يمر 30 يوم على PM.
-   - أبيض: غير ذلك (أو لا توجد تواريخ).
+/* ===== حالة الألوان + العلامة المائية =====
+   - Overdue: اليوم >= (PM + 30 يوم)  → أحمر غامق + Watermark "منتهي"
+   - Ok window: اليوم بين PM و Next و أقل من 30 يوم من PM → أخضر فاتح
+   - Otherwise: أبيض
 */
-function applyStickerBackground(pmDateStr, nextDateStr){
+function applyStickerState(pmDateStr, nextDateStr){
   const card = $('#sticker');
-  if(!pmDateStr){ card.style.background = 'var(--base)'; return; }
+  const wm   = $('#wm');
+
+  // reset
+  card.classList.remove('overdue');
+  wm.style.display = 'none';
+  card.style.background = 'var(--base)';
+
+  if(!pmDateStr){ return; }
 
   const today = new Date();
   const pm    = new Date(pmDateStr + 'T00:00:00');
@@ -137,19 +159,25 @@ function applyStickerBackground(pmDateStr, nextDateStr){
 
   const pmPlus30 = addDays(pm, 30);
 
-  // 1) لو مر شهر بعد PM ⇒ أحمر
+  // 1) Overdue: أحمر غامق + watermark
   if(today >= pmPlus30){
-    card.style.background = 'var(--over)'; // أحمر
+    card.classList.add('overdue');
+    wm.style.display = 'flex';
     return;
   }
-  // 2) لو بين PM و Next (وأقل من شهر من PM) ⇒ أخضر
+  // 2) Window الأخضر
   if(next && today >= pm && today <= next){
-    card.style.background = 'var(--ok)'; // أخضر
+    card.style.background = 'var(--ok)'; // أخضر فاتح
     return;
   }
-  // 3) غير ذلك ⇒ أبيض
-  card.style.background = 'var(--base)';
+  // غير ذلك: يبقى أبيض
 }
+
+/* ===== Load logos from localStorage if provided ===== */
+const lc = localStorage.getItem('pmqr_company_logo');
+const lcl = localStorage.getItem('pmqr_cluster_logo');
+if(lc) $('#logoCompany').src = lc;
+if(lcl) $('#logoCluster').src = lcl;
 
 /* ===== Load data by hash ===== */
 async function loadSticker(){
@@ -180,8 +208,8 @@ async function loadSticker(){
   $('#v_dept').textContent = d.department || '—';
   $('#meta').textContent = '';
 
-  // خلفية حسب الحالة
-  applyStickerBackground(pm, next);
+  // خلفية + Watermark حسب الحالة
+  applyStickerState(pm, next);
 
   // ولّد QR للرابط الحالي (نفس صفحة الاستيكر لهذه المعدّة)
   const link = currentStickerLink(control);
