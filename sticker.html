@@ -8,14 +8,11 @@
 <style>
   :root{
     --ink:#111827; --muted:#6b7280; --line:#e5e7eb;
-    --ok:#ecfdf5;        /* أخضر فاتح */
-    --over:#7f1d1d;      /* أحمر غامق */
-    --over-fg:#fecaca;   /* نص فاتح على الأحمر */
-    --base:#ffffff;      /* أبيض افتراضي */
+    --active:#ecfdf5;  /* أخضر فاتح عندما يكون ساري */
   }
   *{box-sizing:border-box}
   html,body{
-    margin:0;padding:0;background:#f7fafc;color:var(--ink);
+    margin:0;padding:0;background:#f7fafc;color:#000;
     font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
@@ -24,28 +21,28 @@
   /* بطاقة بحجم كارت الهوية CR80: 85.6mm × 54mm */
   .sticker{
     position:relative;
-    background:var(--base);
+    background:#fff;       /* أبيض دائمًا كافتراضي */
+    color:#000;            /* كل النصوص أسود */
     border:1px solid var(--line);
     border-radius:6px;
     width:85.6mm; height:54mm; max-width:100%;
     padding:4mm 5mm; box-shadow:0 8px 24px rgba(0,0,0,.08);
     display:grid; grid-template-rows:14mm 1fr auto;
-    transition:background-color .2s ease, color .2s ease, border-color .2s ease;
     overflow:hidden;
+    transition:background-color .2s ease;
   }
-  /* طبقة الصورة المائية */
+  /* ساري: أخضر فاتح */
+  .sticker.active{ background:var(--active); }
+
+  /* العلامة المائية عند الانتهاء */
   .watermark{
     position:absolute; inset:0; pointer-events:none;
     display:flex; align-items:center; justify-content:center;
     font-weight:900; font-size:28mm; letter-spacing:2px;
-    opacity:.14; color:#b91c1c; /* أحمر */
+    opacity:.16; color:#dc2626;      /* أحمر واضح */
     transform:rotate(-18deg);
     user-select:none;
   }
-  .sticker.overdue{ background:var(--over); border-color:#5b1111; color:var(--over-fg) }
-  .sticker.overdue .k{ color:#ffe4e6 }      /* مفاتيح */
-  .sticker.overdue .qr{ border-color:#fda4af }
-  .sticker.overdue .head .title{ color:#fff }
 
   .head{display:flex;align-items:center;justify-content:space-between;gap:6px}
   .head img{height:9mm;object-fit:contain}
@@ -56,12 +53,11 @@
   .kv{display:grid;grid-template-columns:44% 56%;column-gap:3mm;row-gap:1.6mm;font-size:10.5px}
   .k{color:var(--muted)} .v{font-weight:700}
   .meta{margin-top:2mm;color:var(--muted);font-size:9.5px;min-height:10px}
-  .sticker.overdue .meta{ color:#fee2e2 }
 
   .toolbar{position:fixed;inset:auto 8px 8px 8px;display:flex;gap:8px;justify-content:center}
-  .btn{padding:10px 14px;border:1px solid #e5e7eb;background:#fff;border-radius:10px;font-weight:700;cursor:pointer}
+  .btn{padding:10px 14px;border:1px solid var(--line);background:#fff;border-radius:10px;font-weight:700;cursor:pointer}
 
-  /* أحجام صغيرة للموبايل */
+  /* موبايل */
   @media (max-width:480px){
     .sticker{width:92vw;height:auto;grid-template-rows:auto auto auto}
     .body{grid-template-columns:1fr}
@@ -135,83 +131,76 @@ function currentStickerLink(control){
   const base = location.origin + location.pathname;
   return `${base}#view/${encodeURIComponent(control)}`;
 }
-const addDays = (date, n)=>{ const d=new Date(date); d.setDate(d.getDate()+n); return d; };
 
-/* ===== حالة الألوان + العلامة المائية =====
-   - Overdue: اليوم >= (PM + 30 يوم)  → أحمر غامق + Watermark "منتهي"
-   - Ok window: اليوم بين PM و Next و أقل من 30 يوم من PM → أخضر فاتح
-   - Otherwise: أبيض
-*/
+/* الحالة: منتهي (PM + 30 يوم) = watermark فقط / ساري = أخضر فاتح */
 function applyStickerState(pmDateStr, nextDateStr){
   const card = $('#sticker');
   const wm   = $('#wm');
-
   // reset
-  card.classList.remove('overdue');
+  card.classList.remove('active');
   wm.style.display = 'none';
-  card.style.background = 'var(--base)';
+  card.style.background = '#fff'; // أبيض دائمًا كأساس
 
-  if(!pmDateStr){ return; }
+  if(!pmDateStr) return;
 
   const today = new Date();
   const pm    = new Date(pmDateStr + 'T00:00:00');
   const next  = nextDateStr ? new Date(nextDateStr + 'T00:00:00') : null;
 
-  const pmPlus30 = addDays(pm, 30);
+  // PM + 30 يوم
+  const pmPlus30 = new Date(pm);
+  pmPlus30.setDate(pmPlus30.getDate() + 30);
 
-  // 1) Overdue: أحمر غامق + watermark
+  // منتهي: أظهر العلامة المائية فقط (خلفية تبقى بيضاء)
   if(today >= pmPlus30){
-    card.classList.add('overdue');
     wm.style.display = 'flex';
     return;
   }
-  // 2) Window الأخضر
+  // ساري: بين PM و Next
   if(next && today >= pm && today <= next){
-    card.style.background = 'var(--ok)'; // أخضر فاتح
-    return;
+    card.classList.add('active'); // أخضر فاتح
   }
-  // غير ذلك: يبقى أبيض
 }
 
-/* ===== Load logos from localStorage if provided ===== */
-const lc = localStorage.getItem('pmqr_company_logo');
+/* تحميل شعارات من localStorage لو موجود */
+const lc  = localStorage.getItem('pmqr_company_logo');
 const lcl = localStorage.getItem('pmqr_cluster_logo');
-if(lc) $('#logoCompany').src = lc;
+if(lc)  $('#logoCompany').src = lc;
 if(lcl) $('#logoCluster').src = lcl;
 
-/* ===== Load data by hash ===== */
+/* ===== تحميل البيانات من الهـاش ===== */
 async function loadSticker(){
   const parts = (location.hash||'').split('/');
   const controlRaw = parts[1] ? decodeURIComponent(parts[1]) : '';
   if(!controlRaw){ $('#meta').textContent = 'لا يوجد رقم جهاز في الرابط'; return; }
 
-  // 1) جرب docId الآمن
+  // جرّب docId الآمن أولًا
   let snap = await getDoc(doc(db,'assets', safeId(controlRaw)));
   if(!snap.exists()){
-    // 2) fallback: where control == controlRaw
+    // بحث بالحقل control كـ fallback
     const qs = await getDocs(query(collection(db,'assets'), where('control','==', controlRaw)));
     snap = qs.docs[0];
   }
   if(!snap || !snap.exists()){ $('#meta').textContent = 'الجهاز غير موجود'; return; }
   const d = snap.data();
 
-  // املأ القيم
   const control = d.control || controlRaw;
   const pm      = d.pm_date || '';
   const next    = d.next_date || '';
 
+  // تعبئة الحقول
   $('#v_control').textContent = control;
-  $('#v_pm').textContent = fmt(pm);
-  $('#v_next').textContent = fmt(next);
-  $('#v_tech').textContent = d.tech || '—';
-  $('#v_site').textContent = d.site || '—';
-  $('#v_dept').textContent = d.department || '—';
-  $('#meta').textContent = '';
+  $('#v_pm').textContent      = fmt(pm);
+  $('#v_next').textContent    = fmt(next);
+  $('#v_tech').textContent    = d.tech || '—';
+  $('#v_site').textContent    = d.site || '—';
+  $('#v_dept').textContent    = d.department || '—';
+  $('#meta').textContent      = '';
 
-  // خلفية + Watermark حسب الحالة
+  // حالة البطاقة (ساري/منتهي)
   applyStickerState(pm, next);
 
-  // ولّد QR للرابط الحالي (نفس صفحة الاستيكر لهذه المعدّة)
+  // توليد QR لرابط نفس الصفحة مع الـ control
   const link = currentStickerLink(control);
   try{
     const url = await QRCode.toDataURL(link, {width: 400, margin: 1});
@@ -220,7 +209,7 @@ async function loadSticker(){
     $('#qr').src = 'https://chart.googleapis.com/chart?cht=qr&chs=400x400&chl=' + encodeURIComponent(link);
   }
 
-  // زر نسخ الرابط
+  // نسخ الرابط
   $('#copyBtn').onclick = async ()=>{
     try{
       await navigator.clipboard.writeText(link);
@@ -231,7 +220,7 @@ async function loadSticker(){
     }catch{}
   };
 
-  // طباعة تلقائية إن طلبت ?autoprint=1
+  // طباعة تلقائية لو ?autoprint=1
   if(new URLSearchParams(location.search).get('autoprint') === '1'){
     setTimeout(()=> window.print(), 300);
   }
