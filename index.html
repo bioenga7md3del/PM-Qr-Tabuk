@@ -10,6 +10,7 @@
   :root{ --line:#e5e7eb }
   .card{background:#fff;border:1px solid var(--line);border-radius:12px}
   .badge{padding:.15rem .5rem;border-radius:.5rem;font-size:.75rem}
+  .muted{color:#64748b}
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -20,104 +21,160 @@
 
 <header class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
   <h1 class="font-black text-xl">لوحة الصيانة الوقائية (PM-QR)</h1>
-  <div class="flex gap-2">
-    <a href="qr.html" class="px-3 py-2 rounded border">صفحة طباعة QR</a>
-    <a href="sticker.html" class="px-3 py-2 rounded border">صفحة الاستيكر</a>
+  <div class="flex gap-2 items-center">
+    <span id="who" class="muted text-sm"></span>
+    <button id="btnLogout" class="hidden px-3 py-2 rounded border">تسجيل الخروج</button>
   </div>
 </header>
 
-<main class="max-w-7xl mx-auto px-4 pb-24">
-  <!-- Actions -->
-  <section class="card p-4 mb-4">
-    <div class="flex flex-wrap gap-2 items-center">
-      <button id="btnToggleAdd" class="px-4 py-2 rounded bg-emerald-600 text-white font-bold">+ إضافة جهاز</button>
-
-      <div class="grow"></div>
-
-      <select id="filterSite" class="px-3 py-2 border rounded w-44">
-        <option value="">كل المواقع</option>
-      </select>
-      <select id="filterDept" class="px-3 py-2 border rounded w-44">
-        <option value="">كل الأقسام</option>
-      </select>
-      <input id="filterSearch" class="px-3 py-2 border rounded w-52" placeholder="بحث بالـ Control…">
-      <button id="btnClearFilters" class="px-3 py-2 rounded border">مسح الفلاتر</button>
-
-      <button id="btnDelete" class="px-3 py-2 rounded bg-red-600 text-white font-bold">🗑️ مسح الأجهزة المحددة</button>
+<!-- ========== شاشة الدخول ========== -->
+<section id="auth" class="max-w-md mx-auto px-4 pb-12">
+  <div class="card p-5">
+    <h2 class="font-extrabold text-lg mb-3">تسجيل الدخول</h2>
+    <div class="grid gap-3">
+      <div>
+        <label class="block text-sm muted mb-1">البريد الإلكتروني</label>
+        <input id="loginEmail" class="w-full px-3 py-2 border rounded" placeholder="you@example.com">
+      </div>
+      <div>
+        <label class="block text-sm muted mb-1">كلمة المرور</label>
+        <input id="loginPass" type="password" class="w-full px-3 py-2 border rounded" placeholder="••••••••">
+      </div>
+      <button id="btnLogin" class="px-4 py-2 rounded bg-emerald-600 text-white font-bold">دخول</button>
     </div>
 
-    <!-- Add/Edit panel -->
-    <div id="addPanel" class="mt-4 hidden">
-      <hr class="my-3">
-      <div class="grid md:grid-cols-3 gap-3">
-        <div>
-          <label class="block text-sm text-slate-500 mb-1">Control Number</label>
-          <input id="f_control" class="w-full px-3 py-2 border rounded" placeholder="مثال: AS-0001">
-        </div>
-        <div>
-          <label class="block text-sm text-slate-500 mb-1">الموقع (Site)</label>
-          <input list="siteList" id="f_site" class="w-full px-3 py-2 border rounded" placeholder="اختر/اكتب موقع">
-          <datalist id="siteList"></datalist>
-        </div>
-        <div>
-          <label class="block text-sm text-slate-500 mb-1">القسم (Department)</label>
-          <input list="deptList" id="f_dept" class="w-full px-3 py-2 border rounded" placeholder="اختر/اكتب قسم">
-          <datalist id="deptList"></datalist>
-        </div>
-        <div>
-          <label class="block text-sm text-slate-500 mb-1">الموقع التفصيلي / Location (اختياري)</label>
-          <input id="f_loc" class="w-full px-3 py-2 border rounded" placeholder="مثال: غرفة عمليات 2">
-        </div>
-        <div>
-          <label class="block text-sm text-slate-500 mb-1">وصف تفصيلي (اختياري)</label>
-          <input id="f_desc" class="w-full px-3 py-2 border rounded" placeholder="موديل/سيريال…">
-        </div>
-        <div>
-          <label class="block text-sm text-slate-500 mb-1">القائم بالصيانة (Tech)</label>
-          <input list="techList" id="f_tech" class="w-full px-3 py-2 border rounded" placeholder="اختر/اكتب اسم">
-          <datalist id="techList"></datalist>
-        </div>
-        <div>
-          <label class="block text-sm text-slate-500 mb-1">تاريخ الصيانة الوقائية (PM Date)</label>
-          <input id="f_pm" type="date" class="w-full px-3 py-2 border rounded">
-        </div>
+    <hr class="my-5">
+
+    <h3 class="font-extrabold text-base mb-2">تسجيل مستخدم جديد</h3>
+    <div class="grid md:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-sm muted mb-1">الاسم</label>
+        <input id="regName" class="w-full px-3 py-2 border rounded" placeholder="الاسم">
       </div>
-      <div class="mt-3 flex gap-2">
-        <button id="btnSave" class="px-4 py-2 rounded bg-emerald-600 text-white font-bold">حفظ</button>
-        <button id="btnCancel" class="px-4 py-2 rounded border">إلغاء</button>
-        <div id="editHint" class="text-sm text-slate-500 hidden">أنت تعدل جهاز: <span id="editId" class="font-bold"></span></div>
+      <div>
+        <label class="block text-sm muted mb-1">الدور</label>
+        <select id="regRole" class="w-full px-3 py-2 border rounded">
+          <option value="tech">فني</option>
+          <option value="engineer">مهندس</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm muted mb-1">البريد الإلكتروني</label>
+        <input id="regEmail" class="w-full px-3 py-2 border rounded" placeholder="email@domain.com">
+      </div>
+      <div>
+        <label class="block text-sm muted mb-1">كلمة المرور</label>
+        <input id="regPass" type="password" class="w-full px-3 py-2 border rounded" placeholder="••••••••">
       </div>
     </div>
-  </section>
+    <div class="mt-3">
+      <button id="btnRegister" class="px-4 py-2 rounded bg-sky-600 text-white font-bold">تسجيل</button>
+    </div>
+  </div>
+</section>
 
-  <!-- Table -->
-  <section class="card p-0 overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead class="bg-slate-100">
-        <tr>
-          <th class="p-2 text-center"><input type="checkbox" id="chkAll"></th>
-          <th class="p-2 text-right">Control</th>
-          <th class="p-2 text-right">Site</th>
-          <th class="p-2 text-right">Department</th>
-          <th class="p-2 text-right">Location</th>
-          <th class="p-2 text-right">Tech</th>
-          <th class="p-2 text-right">PM Date</th>
-          <th class="p-2 text-right">Next PM</th>
-          <th class="p-2 text-center">إجراءات</th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
-  </section>
-</main>
+<!-- ========== التطبيق بعد الدخول ========== -->
+<div id="app" class="hidden">
+  <main class="max-w-7xl mx-auto px-4 pb-24">
+    <!-- شريط تنقل سريع -->
+    <div class="flex gap-2 mb-4">
+      <a href="qr.html" class="px-3 py-2 rounded border bg-white">صفحة طباعة QR</a>
+      <a href="sticker.html" class="px-3 py-2 rounded border bg-white">صفحة الاستيكر</a>
+    </div>
+
+    <!-- Actions -->
+    <section class="card p-4 mb-4">
+      <div class="flex flex-wrap gap-2 items-center">
+        <button id="btnToggleAdd" class="px-4 py-2 rounded bg-emerald-600 text-white font-bold">+ إضافة جهاز</button>
+
+        <div class="grow"></div>
+
+        <select id="filterSite" class="px-3 py-2 border rounded w-44">
+          <option value="">كل المواقع</option>
+        </select>
+        <select id="filterDept" class="px-3 py-2 border rounded w-44">
+          <option value="">كل الأقسام</option>
+        </select>
+        <input id="filterSearch" class="px-3 py-2 border rounded w-52" placeholder="بحث بالـ Control…">
+        <button id="btnClearFilters" class="px-3 py-2 rounded border">مسح الفلاتر</button>
+
+        <button id="btnDelete" class="px-3 py-2 rounded bg-red-600 text-white font-bold">🗑️ مسح الأجهزة المحددة</button>
+      </div>
+
+      <!-- Add/Edit panel -->
+      <div id="addPanel" class="mt-4 hidden">
+        <hr class="my-3">
+        <div class="grid md:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm text-slate-500 mb-1">Control Number</label>
+            <input id="f_control" class="w-full px-3 py-2 border rounded" placeholder="مثال: AS-0001">
+          </div>
+          <div>
+            <label class="block text-sm text-slate-500 mb-1">الموقع (Site)</label>
+            <input list="siteList" id="f_site" class="w-full px-3 py-2 border rounded" placeholder="اختر/اكتب موقع">
+            <datalist id="siteList"></datalist>
+          </div>
+          <div>
+            <label class="block text-sm text-slate-500 mb-1">القسم (Department)</label>
+            <input list="deptList" id="f_dept" class="w-full px-3 py-2 border rounded" placeholder="اختر/اكتب قسم">
+            <datalist id="deptList"></datalist>
+          </div>
+          <div>
+            <label class="block text-sm text-slate-500 mb-1">الموقع التفصيلي / Location (اختياري)</label>
+            <input id="f_loc" class="w-full px-3 py-2 border rounded" placeholder="مثال: غرفة عمليات 2">
+          </div>
+          <div>
+            <label class="block text-sm text-slate-500 mb-1">وصف تفصيلي (اختياري)</label>
+            <input id="f_desc" class="w-full px-3 py-2 border rounded" placeholder="موديل/سيريال…">
+          </div>
+          <div>
+            <label class="block text-sm text-slate-500 mb-1">القائم بالصيانة (Tech)</label>
+            <input list="techList" id="f_tech" class="w-full px-3 py-2 border rounded" placeholder="اختر/اكتب اسم">
+            <datalist id="techList"></datalist>
+          </div>
+          <div>
+            <label class="block text-sm text-slate-500 mb-1">تاريخ الصيانة الوقائية (PM Date)</label>
+            <input id="f_pm" type="date" class="w-full px-3 py-2 border rounded">
+          </div>
+        </div>
+        <div class="mt-3 flex gap-2">
+          <button id="btnSave" class="px-4 py-2 rounded bg-emerald-600 text-white font-bold">حفظ</button>
+          <button id="btnCancel" class="px-4 py-2 rounded border">إلغاء</button>
+          <div id="editHint" class="text-sm text-slate-500 hidden">أنت تعدل جهاز: <span id="editId" class="font-bold"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Table -->
+    <section class="card p-0 overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100">
+          <tr>
+            <th class="p-2 text-center"><input type="checkbox" id="chkAll"></th>
+            <th class="p-2 text-right">Control</th>
+            <th class="p-2 text-right">Site</th>
+            <th class="p-2 text-right">Department</th>
+            <th class="p-2 text-right">Location</th>
+            <th class="p-2 text-right">Tech</th>
+            <th class="p-2 text-right">PM Date</th>
+            <th class="p-2 text-right">Next PM</th>
+            <th class="p-2 text-center">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </section>
+  </main>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import {
-  getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc,
+  getFirestore, collection, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc,
   serverTimestamp, query, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
+/* ================= Firebase ================= */
 const firebaseConfig = {
   apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
   authDomain: "pmqrtabuk.firebaseapp.com",
@@ -129,7 +186,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 
-// ===== Helpers =====
+/* ================= Helpers ================= */
 const $ = s => document.querySelector(s);
 function notify(msg, type='ok'){
   const n = $('#notice');
@@ -139,18 +196,71 @@ function notify(msg, type='ok'){
      type==='info'  ? 'bg-sky-50 border-sky-200 text-sky-700' :
                       'bg-emerald-50 border-emerald-200 text-emerald-700');
 }
-const safeId = s => (s||'').trim().replace(/[\/#?\s]/g,'-');
+const safeId = s => (s||'').trim().toLowerCase().replace(/[\/#?\s]/g,'-');
 const toISO  = d => new Date(d).toISOString().slice(0,10);
-function addMonths(dateStr, n=6){
-  const d = new Date(dateStr); d.setMonth(d.getMonth()+n); return toISO(d);
+function addMonths(dateStr, n=6){ const d=new Date(dateStr); d.setMonth(d.getMonth()+n); return toISO(d); }
+function uniq(arr){ return [...new Set(arr.filter(Boolean))].sort(); }
+async function sha256(text){
+  const enc = new TextEncoder().encode(text);
+  const hash = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
-// ===== State =====
-let all = [];      // كل الأجهزة
-let filtered = []; // بعد الفلاتر
+/* ================= Auth (users collection) ================= */
+let currentUser = null; // {name,email,role}
+
+function showApp(show){
+  $('#auth').classList.toggle('hidden', show);
+  $('#app').classList.toggle('hidden', !show);
+  $('#btnLogout').classList.toggle('hidden', !show);
+  $('#who').textContent = show ? (`مرحبًا، ${currentUser?.name||''} — الدور: ${currentUser?.role||''}`) : '';
+  // إخفاء زر المسح لغير المهندس
+  $('#btnDelete').classList.toggle('hidden', currentUser?.role !== 'engineer');
+}
+
+async function register(){
+  const name = $('#regName').value.trim();
+  const role = $('#regRole').value;
+  const email= $('#regEmail').value.trim().toLowerCase();
+  const pass = $('#regPass').value;
+  if(!name || !email || !pass){ notify('أكمل حقول التسجيل','error'); return; }
+  const id = safeId(email);
+  const uref = doc(db,'users',id);
+  if((await getDoc(uref)).exists()){ notify('المستخدم موجود بالفعل','error'); return; }
+  const passwordHash = await sha256(pass);
+  await setDoc(uref,{name,email,role,passwordHash,createdAt: serverTimestamp()});
+  notify('تم تسجيل المستخدم بنجاح ✅');
+}
+
+async function login(){
+  const email= $('#loginEmail').value.trim().toLowerCase();
+  const pass = $('#loginPass').value;
+  if(!email || !pass){ notify('أدخل البريد وكلمة المرور','error'); return; }
+  const uref = doc(db,'users', safeId(email));
+  const snap = await getDoc(uref);
+  if(!snap.exists()){ notify('المستخدم غير موجود','error'); return; }
+  const data = snap.data();
+  const ok = (await sha256(pass)) === data.passwordHash;
+  if(!ok){ notify('كلمة المرور غير صحيحة','error'); return; }
+  currentUser = { name:data.name, email:data.email, role:data.role };
+  localStorage.setItem('pmqr_user', JSON.stringify(currentUser));
+  notify('تم تسجيل الدخول ✅');
+  showApp(true);
+  await loadData();
+}
+
+function logout(){
+  localStorage.removeItem('pmqr_user');
+  currentUser = null;
+  showApp(false);
+  notify('تم تسجيل الخروج','info');
+}
+
+/* ================= Data ================= */
+let all = [];
+let filtered = [];
 let editingId = null;
 
-// ===== Load =====
 async function loadData(){
   notify('جارِ تحميل البيانات…','info');
   const qs = await getDocs(query(collection(db,'assets'), orderBy('control')));
@@ -159,10 +269,9 @@ async function loadData(){
   fillDatalists();
   fillFilters();
   renderTable();
-  notify('تم التحميل ✅','ok');
+  notify('تم التحميل ✅');
 }
 
-function uniq(arr){ return [...new Set(arr.filter(Boolean))].sort(); }
 function fillDatalists(){
   $('#siteList').innerHTML = uniq(all.map(x=>x.site)).map(s=>`<option value="${s}">`).join('');
   $('#deptList').innerHTML = uniq(all.map(x=>x.department)).map(s=>`<option value="${s}">`).join('');
@@ -209,12 +318,12 @@ function rowHTML(x){
 }
 
 function renderTable(){
-  $('#tbody').innerHTML = filtered.map(rowHTML).join('') || 
-    `<tr><td colspan="9" class="p-6 text-center text-slate-500">لا توجد بيانات مطابقة</td></tr>`;
+  $('#tbody').innerHTML = filtered.map(rowHTML).join('') ||
+    `<tr><td colspan="9" class="p-6 text-center muted">لا توجد بيانات مطابقة</td></tr>`;
   $('#chkAll').checked = false;
 }
 
-// ===== Add/Edit =====
+/* ===== Add / Edit ===== */
 function resetForm(){
   ['f_control','f_site','f_dept','f_loc','f_desc','f_tech','f_pm'].forEach(id=> $('#'+id).value='');
   editingId = null;
@@ -286,11 +395,12 @@ window.pmDone = async function(id){
   }
 };
 
-// ===== Delete selected =====
+/* ===== Delete selected (engineer only) ===== */
 $('#chkAll').addEventListener('click', e=>{
   document.querySelectorAll('.rchk').forEach(c=> c.checked = e.target.checked);
 });
 $('#btnDelete').addEventListener('click', async ()=>{
+  if(currentUser?.role !== 'engineer'){ notify('الحذف متاح للمهندس فقط','error'); return; }
   const ids = Array.from(document.querySelectorAll('.rchk:checked')).map(c=>c.value);
   if(!ids.length){ notify('اختر جهازًا واحدًا على الأقل','error'); return; }
   if(!confirm('هل أنت متأكد من مسح الأجهزة المحددة؟')) return;
@@ -302,7 +412,7 @@ $('#btnDelete').addEventListener('click', async ()=>{
   await loadData();
 });
 
-// ===== Filters =====
+/* ===== Filters ===== */
 $('#filterSite').addEventListener('change', applyFilters);
 $('#filterDept').addEventListener('change', applyFilters);
 $('#filterSearch').addEventListener('input', applyFilters);
@@ -311,9 +421,20 @@ $('#btnClearFilters').addEventListener('click', ()=>{
   applyFilters();
 });
 
-// Init
+/* ===== Auth events ===== */
+$('#btnRegister').addEventListener('click', register);
+$('#btnLogin').addEventListener('click', login);
+$('#btnLogout').addEventListener('click', logout);
+
+/* ===== Boot ===== */
 notify('تم الاتصال بـ Firebase ✅','ok');
-loadData().catch(e=> notify('فشل التحميل: '+e.message,'error'));
+const saved = localStorage.getItem('pmqr_user');
+if(saved){
+  try{ currentUser = JSON.parse(saved); showApp(true); loadData(); }
+  catch{ showApp(false); }
+}else{
+  showApp(false);
+}
 </script>
 </body>
 </html>
