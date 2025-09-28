@@ -1,559 +1,168 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>PM-QR Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    .status-pill{ padding:.25rem .5rem; border-radius:999px; font-size:.75rem; font-weight:800 }
-    .pill-ok{ background:#dcfce7; color:#166534 }
-    .pill-warn{ background:#fef9c3; color:#854d0e }
-    .pill-bad{ background:#fee2e2; color:#991b1b }
-    @media print { .no-print{ display:none !important } }
-
-    /* تمييز صفوف الجدول حسب الحالة (نفس منطق الاستيكر) */
-    .row-active { background:#ecfdf5 }   /* ساري */
-    .row-over   { background:#fee2e2 }   /* منتهي (PM + 30 يوم) */
-    .row-hover:hover { filter:brightness(.98) }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>PM-QR Dashboard</title>
+<style>
+  :root{ --bg:#0b1220; --card:#111827; --muted:#94a3b8; --text:#111827; --ok:#10b981; --err:#ef4444; --info:#3b82f6; }
+  body{background:#0b1220;color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0}
+  .notice{position:sticky;top:0;z-index:1000;padding:10px 14px;text-align:center;font-weight:700}
+  .n-ok{background:rgba(16,185,129,.15);border-bottom:1px solid rgba(16,185,129,.5);color:#a7f3d0}
+  .n-err{background:rgba(239,68,68,.15);border-bottom:1px solid rgba(239,68,68,.5);color:#fecaca}
+  .n-info{background:rgba(59,130,246,.15);border-bottom:1px solid rgba(59,130,246,.5);color:#bfdbfe}
+  .container{max-width:1300px;margin:0 auto;padding:20px}
+  .card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:16px;margin:10px 0;box-shadow:0 12px 36px rgba(0,0,0,.3)}
+  .row{margin:8px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  input, select{padding:10px 12px;border-radius:10px;border:1px solid #374151;background:#0b1220;color:#fff;min-width:180px}
+  .btn{padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weight:700;font-size:13px}
+  .btn.ok{background:#10b981;color:#083344} .btn.secondary{background:#3b82f6;color:#e0f2fe}
+  .btn.danger{background:#ef4444;color:#fff} .btn.warning{background:#f59e0b;color:#fff}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th,td{padding:8px 6px;text-align:center;border-bottom:1px solid #374151}
+  thead{background:#1f2937;color:#f3f4f6}
+  tbody tr{background:#f9fafb;color:#111827} /* النص أسود */
+  tbody tr.row-active{background:#d1fae5;color:#111827} /* أخضر فاتح */
+  tbody tr.row-over{background:#fee2e2;color:#111827}   /* أحمر فاتح */
+  .tools{display:flex;gap:8px;flex-wrap:wrap}
+</style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
-  <!-- Notice -->
-  <div id="notice" class="no-print text-center py-2 font-bold bg-sky-900/40 border-b border-sky-700">
-    جارِ التحقق من الجلسة…
-  </div>
-
-  <!-- Topbar -->
-  <header class="no-print sticky top-0 z-40 bg-slate-900/80 backdrop-blur border-b border-slate-800">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="text-xl font-extrabold">لوحة PM-QR</div>
-        <span id="userEmail" class="hidden md:inline text-slate-300 text-sm"></span>
-      </div>
-      <div class="flex items-center gap-2">
-        <a href="import.html" class="px-3 py-2 rounded-lg bg-emerald-500 text-emerald-950 font-bold hover:opacity-90">📂 رفع ملف إكسل</a>
-        <button id="openAddBtn" class="px-3 py-2 rounded-lg bg-sky-500 text-sky-950 font-bold hover:opacity-90">➕ إضافة جهاز</button>
-        <button id="signOutBtn" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700">تسجيل الخروج</button>
-      </div>
+<body>
+<div id="notice" class="notice n-info">جارِ الاتصال بـ Firebase…</div>
+<div class="container">
+  <div class="card">
+    <h1>إدارة الأجهزة</h1>
+    <div class="row">
+      <button class="btn ok" onclick="showAddForm()">➕ إضافة جهاز جديد</button>
+      <button class="btn danger" onclick="deleteSelected()">🗑 حذف جماعي</button>
     </div>
-  </header>
-
-  <main class="max-w-7xl mx-auto px-4 py-6">
-
-    <!-- KPI Cards -->
-    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-slate-400">إجمالي الأجهزة</div>
-        <div id="kpi_total" class="text-3xl font-extrabold">—</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-slate-400">المستحقة هذا الشهر</div>
-        <div id="kpi_due" class="text-3xl font-extrabold">—</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-slate-400">متأخرة</div>
-        <div id="kpi_over" class="text-3xl font-extrabold">—</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-slate-400">خلال 30 يومًا</div>
-        <div id="kpi_30" class="text-3xl font-extrabold">—</div>
-      </div>
-    </section>
-
-    <!-- Filters -->
-    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-3 no-print">
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
-        <input id="q" class="px-3 py-2 rounded bg-slate-950 border border-slate-800" placeholder="بحث بالـ Control أو الفني…"/>
-        <select id="filter_site" class="px-3 py-2 rounded bg-slate-950 border border-slate-800">
-          <option value="">كل المواقع</option>
-        </select>
-        <select id="filter_dept" class="px-3 py-2 rounded bg-slate-950 border border-slate-800">
-          <option value="">كل الأقسام</option>
-        </select>
-        <select id="filter_status" class="px-3 py-2 rounded bg-slate-950 border border-slate-800">
-          <option value="">كل الحالات</option>
-          <option value="ok">محدّث</option>
-          <option value="due">مستحق هذا الشهر</option>
-          <option value="over">متأخر</option>
-          <option value="soon">خلال 30 يومًا</option>
-        </select>
-        <div class="flex gap-2">
-          <button id="refreshBtn" class="px-3 py-2 bg-slate-700 rounded">تحديث</button>
-          <button id="clearFilters" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded">مسح</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Legend + Bulk actions -->
-    <div class="no-print flex flex-wrap items-center justify-between gap-2 mb-3">
-      <div class="flex items-center gap-4 text-slate-300 text-sm">
-        <span class="inline-flex items-center gap-2"><i class="inline-block w-4 h-4 rounded-sm" style="background:#ecfdf5"></i> ساري</span>
-        <span class="inline-flex items-center gap-2"><i class="inline-block w-4 h-4 rounded-sm" style="background:#fee2e2"></i> منتهي (PM + 30 يوم)</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <button id="btnDeptQR" class="px-3 py-2 rounded bg-yellow-500 text-yellow-950 font-bold">
-          🔳 طباعة QR للقسم الحالي
-        </button>
-        <button id="btnBulkDelete" class="px-3 py-2 rounded bg-red-600 text-white font-bold">
-          🗑️ مسح الأجهزة المحددة
-        </button>
-      </div>
-    </div>
-
-    <!-- Assets Table -->
-    <section class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="min-w-full text-sm">
-          <thead class="bg-slate-800 text-slate-200">
-            <tr>
-              <th class="p-3 text-center w-10">
-                <input id="chkAll" type="checkbox" class="w-4 h-4">
-              </th>
-              <th class="p-3 text-right">Control</th>
-              <th class="p-3 text-right">Site</th>
-              <th class="p-3 text-right">Department</th>
-              <th class="p-3 text-right">Location</th>
-              <th class="p-3 text-right">PM Date</th>
-              <th class="p-3 text-right">Next PM</th>
-              <th class="p-3 text-right">Tech</th>
-              <th class="p-3 text-right">الحالة</th>
-              <th class="p-3 text-right">أدوات</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-
-      <!-- Pagination -->
-      <div class="no-print flex items-center justify-between p-3 border-t border-slate-800">
-        <div id="pageInfo" class="text-slate-400 text-sm">—</div>
-        <div class="flex gap-2">
-          <button id="prev" class="px-3 py-1.5 rounded bg-slate-800 border border-slate-700">السابق</button>
-          <button id="next" class="px-3 py-1.5 rounded bg-slate-800 border border-slate-700">التالي</button>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Add Asset Modal -->
-  <div id="addModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center no-print">
-    <div class="bg-white text-black rounded-lg shadow-xl w-full max-w-2xl p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-bold">إضافة جهاز جديد</h2>
-        <button id="closeAdd" class="px-3 py-1 rounded bg-gray-200">✕</button>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-        <input id="a_control" placeholder="Control Number" class="w-full px-3 py-2 border rounded"/>
-        <input id="a_site" placeholder="الموقع (المستشفى)" class="w-full px-3 py-2 border rounded" list="sitesList"/>
-        <input id="a_dept" placeholder="القسم" class="w-full px-3 py-2 border rounded" list="deptsList"/>
-        <input id="a_loc" placeholder="الوصف التفصيلي (Location)" class="w-full px-3 py-2 border rounded"/>
-        <input id="a_tech" placeholder="الفني القائم بالصيانة" class="w-full px-3 py-2 border rounded"/>
-        <input id="a_pm" type="date" class="w-full px-3 py-2 border rounded"/>
-      </div>
-      <div class="flex justify-end gap-2">
-        <button id="saveAdd" class="px-4 py-2 rounded bg-sky-600 text-white font-bold">حفظ</button>
-      </div>
+    <div id="addForm" style="display:none;margin-top:10px">
+      <input id="control" placeholder="Control Number"/>
+      <input id="site" placeholder="الموقع"/>
+      <input id="dept" placeholder="القسم"/>
+      <input id="loc" placeholder="المكان التفصيلي"/>
+      <input id="tech" placeholder="الفني"/>
+      <input id="pm_date" type="date" placeholder="تاريخ الصيانة"/>
+      <button class="btn ok" onclick="addAsset()">حفظ</button>
+      <button class="btn secondary" onclick="hideAddForm()">إلغاء</button>
     </div>
   </div>
 
-  <!-- Edit Asset Modal -->
-  <div id="editModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center no-print">
-    <div class="bg-white text-black rounded-lg shadow-xl w-full max-w-2xl p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-bold">تعديل جهاز</h2>
-        <button id="closeEdit" class="px-3 py-1 rounded bg-gray-200">✕</button>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-        <input id="m_control" placeholder="Control Number" class="w-full px-3 py-2 border rounded"/>
-        <input id="m_site" placeholder="الموقع (المستشفى)" class="w-full px-3 py-2 border rounded" list="sitesList"/>
-        <input id="m_dept" placeholder="القسم" class="w-full px-3 py-2 border rounded" list="deptsList"/>
-        <input id="m_loc" placeholder="الوصف التفصيلي (Location)" class="w-full px-3 py-2 border rounded"/>
-        <input id="m_tech" placeholder="الفني القائم بالصيانة" class="w-full px-3 py-2 border rounded"/>
-        <input id="m_pm" type="date" class="w-full px-3 py-2 border rounded"/>
-      </div>
-      <div class="flex justify-end gap-2">
-        <button id="saveEdit" class="px-4 py-2 rounded bg-sky-600 text-white font-bold">حفظ</button>
-      </div>
-    </div>
+  <div class="card">
+    <h2>قائمة الأجهزة</h2>
+    <table id="assetsTable">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="checkAll" onclick="toggleAll(this)"/></th>
+          <th>Control</th><th>Site</th><th>Department</th><th>Location</th>
+          <th>PM Date</th><th>Next Date</th><th>Tech</th><th>الحالة</th><th>أدوات</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
   </div>
+</div>
 
-  <!-- datalist sources -->
-  <datalist id="sitesList"></datalist>
-  <datalist id="deptsList"></datalist>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+import { getFirestore, collection, getDocs, setDoc, doc, deleteDoc, serverTimestamp, orderBy, query } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
-  <!-- Firebase + App logic -->
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js';
-    import {
-      getFirestore, collection, getDocs, query, orderBy, setDoc, doc, serverTimestamp, updateDoc, deleteDoc
-    } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
+const firebaseConfig = {
+  apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
+  authDomain: "pmqrtabuk.firebaseapp.com",
+  projectId: "pmqrtabuk",
+  storageBucket: "pmqrtabuk.firebasestorage.app",
+  messagingSenderId: "305570616285",
+  appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
-      authDomain: "pmqrtabuk.firebaseapp.com",
-      projectId: "pmqrtabuk",
-      storageBucket: "pmqrtabuk.firebasestorage.app",
-      messagingSenderId: "305570616285",
-      appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
-    };
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+const $ = s=>document.querySelector(s);
+const tbody = $('#tbody');
+let all=[];
 
-    // ===== Utils =====
-    const $ = s => document.querySelector(s);
-    const notify=(msg,type='info')=>{
-      const n=$('#notice');
-      n.textContent=msg;
-      n.className='no-print text-center py-2 font-bold '+
-        (type==='ok'?'bg-emerald-900/40 border-b border-emerald-700':
-         type==='error'?'bg-red-900/40 border-b border-red-700':
-                        'bg-sky-900/40 border-b border-sky-700');
-    };
-    const toISO=d=>new Date(d).toISOString().slice(0,10);
-    const addMonths=(d,m)=>{const x=new Date(d); x.setMonth(x.getMonth()+m); return x};
-    const calcNext=pm=>pm? toISO(addMonths(pm,6)):'';
-    const safeId=s=>String(s||'').trim().replace(/[\/?#\s]+/g,'-');
-    const buildStickerLink = control => `sticker.html#view/${encodeURIComponent(control)}`;
+function notify(msg,type='info'){ const n=$('#notice');n.textContent=msg;n.className='notice '+(type==='ok'?'n-ok':type==='error'?'n-err':'n-info'); }
 
-    // منطق تلوين الصفوف (نفس الاستيكر)
-    function rowState(pm, next){
-      if(!pm) return 'none';
-      const today = new Date();
-      const pmDate = new Date(pm + 'T00:00:00');
-      const nextDate = next ? new Date(next + 'T00:00:00') : null;
-      const pmPlus30 = new Date(pmDate); pmPlus30.setDate(pmPlus30.getDate()+30);
+function calcNext(pm){ if(!pm) return ""; const d=new Date(pm); d.setMonth(d.getMonth()+6); return d.toISOString().slice(0,10); }
+function statusRow(d){
+  if(!d.next_date) return '—';
+  const today=new Date(); const next=new Date(d.next_date);
+  if(today>new Date(next.setMonth(next.getMonth()+1))) return 'منتهي';
+  return 'ساري';
+}
 
-      if(today >= pmPlus30) return 'over';       // منتهي
-      if(nextDate && today >= pmDate && today <= nextDate) return 'active'; // ساري
-      return 'none';
-    }
+function renderTable(){
+  tbody.innerHTML='';
+  all.forEach(d=>{
+    const st=statusRow(d);
+    const tr=document.createElement('tr');
+    if(st==='منتهي') tr.classList.add('row-over');
+    else if(st==='ساري') tr.classList.add('row-active');
+    tr.innerHTML=`
+      <td><input type="checkbox" data-id="${d.id}"></td>
+      <td>${d.control||''}</td>
+      <td>${d.site||''}</td>
+      <td>${d.department||''}</td>
+      <td>${d.location||''}</td>
+      <td>${d.pm_date||''}</td>
+      <td>${d.next_date||''}</td>
+      <td>${d.tech||''}</td>
+      <td>${st}</td>
+      <td class="tools">
+        <button class="btn secondary" onclick="window.open('sticker.html#view/${encodeURIComponent(d.control)}','_blank')">📄 استيكر</button>
+        <button class="btn warning" onclick="window.open('qr.html#view/${encodeURIComponent(d.control)}','_blank')">QR</button>
+        <button class="btn danger" onclick="deleteOne('${d.id}')">🗑 مسح</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
 
-    function statusOf(nextISO){
-      if(!nextISO) return {key:'over',label:'—',cls:'pill-bad'};
-      const today=new Date();
-      const next=new Date(nextISO+'T00:00:00');
-      const diff=(next-today)/(1000*60*60*24);
-      if(diff<0) return {key:'over',label:'متأخر',cls:'pill-bad'};
-      const sameMonth = today.getFullYear()===next.getFullYear() && today.getMonth()===next.getMonth();
-      if(sameMonth) return {key:'due',label:'مستحق هذا الشهر',cls:'pill-warn'};
-      if(diff<=30) return {key:'soon',label:'خلال 30 يومًا',cls:'pill-warn'};
-      return {key:'ok',label:'OK',cls:'pill-ok'};
-    }
+window.addAsset=async function(){
+  const control=$('#control').value.trim();
+  const site=$('#site').value.trim();
+  const dept=$('#dept').value.trim();
+  const loc=$('#loc').value.trim();
+  const tech=$('#tech').value.trim();
+  const pm=$('#pm_date').value;
+  if(!control||!pm){notify('أدخل الكنترول والتاريخ','error');return;}
+  const docId=control.replace(/[\/#?\s]/g,'-');
+  const next=calcNext(pm);
+  await setDoc(doc(db,'assets',docId),{control,site,department:dept,location:loc,tech,pm_date:pm,next_date:next,updatedAt:serverTimestamp()});
+  notify('تمت إضافة الجهاز ✅','ok'); loadData(); hideAddForm();
+};
 
-    // ===== Auth Guard =====
-    onAuthStateChanged(auth, user=>{
-      if(!user){ location.href='login.html'; return; }
-      $('#userEmail').textContent = user.email || '';
-      notify('تم تسجيل الدخول ✅','ok');
-      loadData();
-    });
-    $('#signOutBtn').onclick = ()=> signOut(auth).then(()=> location.href='login.html');
+window.deleteOne=async function(id){
+  if(confirm('هل تريد حذف هذا الجهاز؟')){ await deleteDoc(doc(db,'assets',id)); notify('تم الحذف ✅','ok'); loadData(); }
+};
 
-    // ===== State =====
-    let all = [];
-    let filtered = [];
-    let page = 1; const pageSize = 20;
-    let editingId = null;
+window.deleteSelected=async function(){
+  const checks=[...tbody.querySelectorAll('input[type=checkbox]:checked')];
+  if(!checks.length){alert('اختر أجهزة للحذف');return;}
+  if(confirm('هل تريد حذف الأجهزة المحددة؟')){
+    for(const c of checks){ await deleteDoc(doc(db,'assets',c.dataset.id)); }
+    notify('تم الحذف الجماعي ✅','ok'); loadData();
+  }
+};
 
-    function fillFilterOptions(){
-      const sites = Array.from(new Set(all.map(x=>x.site).filter(Boolean))).sort();
-      const depts = Array.from(new Set(all.map(x=>x.department).filter(Boolean))).sort();
-      $('#filter_site').innerHTML = '<option value="">كل المواقع</option>' + sites.map(s=>`<option>${s}</option>`).join('');
-      $('#filter_dept').innerHTML = '<option value="">كل الأقسام</option>' + depts.map(s=>`<option>${s}</option>`).join('');
-      $('#sitesList').innerHTML = sites.map(s=>`<option value="${s}"></option>`).join('');
-      $('#deptsList').innerHTML = depts.map(s=>`<option value="${s}"></option>`).join('');
-    }
+window.toggleAll=function(master){
+  tbody.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=master.checked);
+};
 
-    function applyFilters(){
-      const q = $('#q').value.trim().toLowerCase();
-      const fs = $('#filter_site').value;
-      const fd = $('#filter_dept').value;
-      const fstatus = $('#filter_status').value;
+window.showAddForm=function(){ $('#addForm').style.display='block'; };
+window.hideAddForm=function(){ $('#addForm').style.display='none'; };
 
-      filtered = all.filter(x=>{
-        const matchQ = !q || (String(x.control||'').toLowerCase().includes(q) || String(x.tech||'').toLowerCase().includes(q));
-        const matchS = !fs || x.site===fs;
-        const matchD = !fd || x.department===fd;
-        const st = statusOf(x.next_date||'').key;
-        const matchT = !fstatus || st===fstatus;
-        return matchQ && matchS && matchD && matchT;
-      });
-      page = 1;
-      renderTable();
-      renderKPI();
-    }
-
-    function renderKPI(){
-      $('#kpi_total').textContent = all.length;
-      let due=0, over=0, soon=0;
-      const today = new Date();
-      for(const x of all){
-        const st = statusOf(x.next_date||'').key;
-        if(st==='over') over++;
-        if(st==='soon') soon++;
-        if(x.next_date){
-          const d = new Date(x.next_date+'T00:00:00');
-          if(d.getFullYear()===today.getFullYear() && d.getMonth()===today.getMonth()) due++;
-        }
-      }
-      $('#kpi_due').textContent = due;
-      $('#kpi_over').textContent = over;
-      $('#kpi_30').textContent = soon;
-    }
-
-    function renderTable(){
-      const tbody = $('#tbody'); tbody.innerHTML='';
-      const start = (page-1)*pageSize;
-      const items = filtered.slice(start, start+pageSize);
-
-      for(const d of items){
-        const st = statusOf(d.next_date||'');
-        const state = rowState(d.pm_date||'', d.next_date||'');
-
-        const tr = document.createElement('tr');
-        tr.className = 'border-b border-slate-800 row-hover';
-        if(state==='active') tr.classList.add('row-active');
-        if(state==='over')   tr.classList.add('row-over');
-
-        tr.innerHTML = `
-          <td class="p-3 text-center w-10">
-            <input type="checkbox" class="rowChk w-4 h-4" value="${d.id}">
-          </td>
-          <td class="p-3 font-bold">${d.control||'—'}</td>
-          <td class="p-3">${d.site||'—'}</td>
-          <td class="p-3">${d.department||'—'}</td>
-          <td class="p-3">${d.location||'—'}</td>
-          <td class="p-3">${d.pm_date||'—'}</td>
-          <td class="p-3">${d.next_date||'—'}</td>
-          <td class="p-3">${d.tech||'—'}</td>
-          <td class="p-3"><span class="status-pill ${st.cls}">${st.label}</span></td>
-          <td class="p-3"><div class="flex flex-wrap gap-2"></div></td>
-        `;
-
-        const tools = tr.querySelector('div');
-        const controlSafe = encodeURIComponent(d.control||'');
-
-        // ✏️ تعديل
-        const btnEdit = document.createElement('button');
-        btnEdit.className = 'px-2 py-1 rounded bg-sky-500 text-sky-950 font-bold';
-        btnEdit.textContent = '✏️ تعديل';
-        btnEdit.dataset.edit = d.id || (d.control? d.control.replace(/[\/?#\s]+/g,'-') : '');
-        btnEdit.dataset.control = encodeURIComponent(d.control||'');
-        btnEdit.dataset.site    = encodeURIComponent(d.site||'');
-        btnEdit.dataset.dept    = encodeURIComponent(d.department||'');
-        btnEdit.dataset.loc     = encodeURIComponent(d.location||'');
-        btnEdit.dataset.tech    = encodeURIComponent(d.tech||'');
-        btnEdit.dataset.pm      = encodeURIComponent(d.pm_date||'');
-        tools.appendChild(btnEdit);
-
-        // ✅ تم عمل الصيانة
-        const btnQuick = document.createElement('button');
-        btnQuick.className = 'px-2 py-1 rounded bg-emerald-500 text-emerald-950 font-bold';
-        btnQuick.textContent = '✅ تم عمل الصيانة';
-        btnQuick.dataset.quickpm = d.id || (d.control? d.control.replace(/[\/?#\s]+/g,'-') : '');
-        tools.appendChild(btnQuick);
-
-        // 🏷️ استيكر
-        const aSticker = document.createElement('a');
-        aSticker.className = 'px-2 py-1 rounded bg-indigo-500 text-indigo-50 font-bold';
-        aSticker.textContent = '🏷️ استيكر';
-        aSticker.target = '_blank';
-        aSticker.href = `sticker.html#view/${controlSafe}`;
-        tools.appendChild(aSticker);
-
-        // 🔳 QR
-        const aQR = document.createElement('a');
-        aQR.className = 'px-2 py-1 rounded bg-yellow-500 text-yellow-950 font-bold';
-        aQR.textContent = '🔳 QR';
-        aQR.target = '_blank';
-        aQR.href = `qr.html?control=${controlSafe}`;
-        tools.appendChild(aQR);
-
-        // 🖨️ طباعة الاستيكر
-        const aPrint = document.createElement('a');
-        aPrint.className = 'px-2 py-1 rounded bg-pink-500 text-pink-50 font-bold';
-        aPrint.textContent = '🖨️ طباعة';
-        aPrint.target = '_blank';
-        aPrint.href = `sticker.html?autoprint=1#view/${controlSafe}`;
-        tools.appendChild(aPrint);
-
-        // 🗑️ مسح فردي
-        const btnDelete = document.createElement('button');
-        btnDelete.className = 'px-2 py-1 rounded bg-red-600 text-white font-bold';
-        btnDelete.textContent = '🗑️ مسح';
-        btnDelete.dataset.del = d.id || (d.control? d.control.replace(/[\/?#\s]+/g,'-') : '');
-        tools.appendChild(btnDelete);
-
-        tbody.appendChild(tr);
-      }
-
-      const end = Math.min(start + items.length, filtered.length);
-      $('#pageInfo').textContent = filtered.length ? `${start+1}–${end} من ${filtered.length}` : 'لا توجد بيانات';
-      $('#chkAll').checked = false;
-    }
-
-    // Pagination
-    $('#prev').onclick = ()=>{ if(page>1){ page--; renderTable(); } };
-    $('#next').onclick = ()=>{ if(page*pageSize < filtered.length){ page++; renderTable(); } };
-
-    // Filters events
-    ['q','filter_site','filter_dept','filter_status'].forEach(id=>{
-      const el=document.getElementById(id);
-      el.addEventListener('input', applyFilters);
-      el.addEventListener('change', applyFilters);
-    });
-    $('#refreshBtn').onclick = loadData;
-    $('#clearFilters').onclick = ()=>{ ['q','filter_site','filter_dept','filter_status'].forEach(id=> document.getElementById(id).value=''); applyFilters(); };
-
-    // زر طباعة QR للقسم الحالي
-    document.getElementById('btnDeptQR')?.addEventListener('click', ()=>{
-      const site = document.getElementById('filter_site').value;
-      const dept = document.getElementById('filter_dept').value;
-      const qs = new URLSearchParams();
-      if(site) qs.set('site', site);
-      if(dept) qs.set('dept', dept);
-      const url = qs.toString() ? `qr.html?${qs.toString()}` : 'qr.html';
-      window.open(url, '_blank');
-    });
-
-    // ===== Add Modal =====
-    const addModal = $('#addModal');
-    const openAdd  = ()=>{ addModal.classList.remove('hidden'); addModal.classList.add('flex'); };
-    const closeAdd = ()=>{ addModal.classList.add('hidden'); addModal.classList.remove('flex'); };
-    $('#openAddBtn').onclick = openAdd;
-    $('#closeAdd').onclick   = closeAdd;
-
-    $('#saveAdd').onclick = async ()=>{
-      const control = $('#a_control').value.trim();
-      if(!control){ notify('أدخل Control Number','error'); return; }
-      const data = {
-        control,
-        site: $('#a_site').value.trim(),
-        department: $('#a_dept').value.trim(),
-        location: $('#a_loc').value.trim(),
-        tech: $('#a_tech').value.trim(),
-        pm_date: $('#a_pm').value || '',
-      };
-      data.next_date = data.pm_date ? calcNext(new Date(data.pm_date)) : '';
-      try{
-        await setDoc(doc(db,'assets', safeId(control)), {...data, updatedAt: serverTimestamp()});
-        notify('تم الحفظ ✅','ok');
-        closeAdd();
-        await loadData();
-      }catch(e){ notify('فشل الحفظ: '+e.message,'error'); }
-    };
-
-    // ===== Edit Modal / Quick PM / Delete (delegation) =====
-    const editModal = $('#editModal');
-    const openEdit  = ()=>{ editModal.classList.remove('hidden'); editModal.classList.add('flex'); };
-    const closeEdit = ()=>{ editModal.classList.add('hidden'); editModal.classList.remove('flex'); };
-    $('#closeEdit').onclick = closeEdit;
-
-    document.addEventListener('click', async (e)=>{
-      // فتح التعديل
-      const be = e.target.closest('button[data-edit]');
-      if(be){
-        const id = be.dataset.edit;
-        editingId = id;
-        $('#m_control').value = decodeURIComponent(be.dataset.control||'');
-        $('#m_site').value    = decodeURIComponent(be.dataset.site||'');
-        $('#m_dept').value    = decodeURIComponent(be.dataset.dept||'');
-        $('#m_loc').value     = decodeURIComponent(be.dataset.loc||'');
-        $('#m_tech').value    = decodeURIComponent(be.dataset.tech||'');
-        $('#m_pm').value      = decodeURIComponent(be.dataset.pm||'');
-        openEdit();
-        return;
-      }
-
-      // تم عمل الصيانة الآن
-      const bq = e.target.closest('button[data-quickpm]');
-      if(bq){
-        try{
-          const id = bq.dataset.quickpm;
-          const today = toISO(new Date());
-          const next  = calcNext(new Date(today));
-          await updateDoc(doc(db,'assets', id), { pm_date: today, next_date: next, updatedAt: serverTimestamp() });
-          notify('تم تسجيل الصيانة اليوم ✅','ok');
-          await loadData();
-        }catch(err){ notify('فشل التحديث: ' + err.message, 'error'); }
-        return;
-      }
-
-      // حذف فردي
-      const bd = e.target.closest('button[data-del]');
-      if(bd){
-        if(!confirm('هل تريد مسح هذا الجهاز نهائيًا؟')) return;
-        try{
-          await deleteDoc(doc(db,'assets', bd.dataset.del));
-          notify('تم المسح 🗑️','ok');
-          await loadData();
-        }catch(err){ notify('فشل المسح: '+err.message,'error'); }
-        return;
-      }
-    });
-
-    $('#saveEdit').onclick = async ()=>{
-      const control = $('#m_control').value.trim();
-      if(!control){ notify('أدخل Control Number','error'); return; }
-      const data = {
-        control,
-        site: $('#m_site').value.trim(),
-        department: $('#m_dept').value.trim(),
-        location: $('#m_loc').value.trim(),
-        tech: $('#m_tech').value.trim(),
-        pm_date: $('#m_pm').value || '',
-      };
-      data.next_date = data.pm_date ? calcNext(new Date(data.pm_date)) : '';
-      const id = editingId || safeId(control);
-      try{
-        await setDoc(doc(db,'assets', id), {...data, updatedAt: serverTimestamp()});
-        notify('تم الحفظ ✅','ok');
-        closeEdit();
-        await loadData();
-      }catch(e){ notify('فشل الحفظ: '+e.message,'error'); }
-    };
-
-    // ===== Select all / Bulk delete =====
-    const tbody = document.getElementById('tbody');
-    document.getElementById('chkAll').addEventListener('change', (e)=>{
-      const checked = e.target.checked;
-      tbody.querySelectorAll('.rowChk').forEach(c=> c.checked = checked);
-    });
-
-    document.getElementById('btnBulkDelete').addEventListener('click', async ()=>{
-      const ids = Array.from(tbody.querySelectorAll('.rowChk:checked')).map(c=> c.value);
-      if(!ids.length){ notify('اختر صفًا واحدًا على الأقل للحذف','error'); return; }
-      if(!confirm(`تأكيد حذف ${ids.length} جهاز؟`)) return;
-      notify('جارِ الحذف الجماعي…','info');
-      let ok=0, fail=0;
-      for(const id of ids){
-        try{ await deleteDoc(doc(db,'assets', id)); ok++; }
-        catch{ fail++; }
-      }
-      notify(`تم الحذف: ${ok} | فشل: ${fail}`,(fail? 'error':'ok'));
-      await loadData();
-    });
-
-    // ===== Load data =====
-    async function loadData(){
-      try{
-        notify('جارِ تحميل البيانات…');
-        const qs = await getDocs(query(collection(db,'assets'), orderBy('control')));
-        all = qs.docs.map(d=> ({ id: d.id, ...d.data() }));
-        fillFilterOptions();
-        filtered = all.slice();
-        renderTable();
-        renderKPI();
-        notify('تم التحميل ✅','ok');
-      }catch(e){ notify('فشل التحميل: '+e.message,'error'); }
-    }
-
-    // أخطاء عامة
-    window.addEventListener('error', e=> notify('خطأ: '+(e.error?.message||e.message),'error'));
-    window.addEventListener('unhandledrejection', e=> notify('خطأ: '+(e.reason?.message||e.reason),'error'));
-  </script>
+async function loadData(){
+  try{
+    notify('جار التحميل…');
+    const qs=await getDocs(query(collection(db,'assets'), orderBy('control')));
+    all=qs.docs.map(d=>({id:d.id,...d.data()}));
+    renderTable(); notify('تم التحميل ✅','ok');
+  }catch(e){ notify('خطأ: '+e.message,'error'); }
+}
+loadData();
+</script>
 </body>
 </html>
