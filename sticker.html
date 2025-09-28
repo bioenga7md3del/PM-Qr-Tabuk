@@ -4,41 +4,67 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>PM-QR – Sticker</title>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <style>
-  :root{ --ink:#111827; --muted:#6b7280; --line:#e5e7eb; }
+  :root{
+    --ink:#111827; --muted:#6b7280; --line:#e5e7eb;
+    --ok:#ecfdf5;      /* أخضر فاتح */
+    --over:#fee2e2;    /* أحمر فاتح */
+    --base:#ffffff;    /* أبيض افتراضي */
+  }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;background:#f7fafc;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
   .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:8px}
+
   /* بطاقة بحجم كارت الهوية CR80: 85.6mm × 54mm */
   .sticker{
-    background:#fff;border:1px solid var(--line);border-radius:6px;
-    width:85.6mm;height:54mm;max-width:100%;padding:4mm 5mm;
-    box-shadow:0 8px 24px rgba(0,0,0,.08);
-    display:grid;grid-template-rows:14mm 1fr
+    background:var(--base);
+    border:1px solid var(--line);
+    border-radius:6px;
+    width:85.6mm; height:54mm; max-width:100%;
+    padding:4mm 5mm; box-shadow:0 8px 24px rgba(0,0,0,.08);
+    display:grid; grid-template-rows:14mm 1fr auto;
+    transition:background-color .2s ease;
   }
+
   .head{display:flex;align-items:center;justify-content:space-between;gap:6px}
-  /* حجم موحد للشعارين */
-  #logoCompany,#logoCluster{height:8mm;max-width:26mm;object-fit:contain}
-  .title{font-weight:900;font-size:14px}
+  .head img{height:10mm;object-fit:contain}
+  .title{font-weight:900;font-size:12.5px} /* تكبير العنوان */
+
   .body{display:grid;grid-template-columns:1fr 22mm;gap:4mm;align-items:center}
   .qr{width:22mm;height:22mm;border-radius:4px;background:#fff;display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
   .kv{display:grid;grid-template-columns:44% 56%;column-gap:3mm;row-gap:1.6mm;font-size:10.5px}
   .k{color:var(--muted)} .v{font-weight:700}
-  .meta{margin-top:2mm;color:var(--muted);font-size:9.5px}
+  .meta{margin-top:2mm;color:var(--muted);font-size:9.5px;min-height:10px}
+
   .toolbar{position:fixed;inset:auto 8px 8px 8px;display:flex;gap:8px;justify-content:center}
   .btn{padding:10px 14px;border:1px solid var(--line);background:#fff;border-radius:10px;font-weight:700;cursor:pointer}
-  @media (max-width:480px){ .sticker{width:92vw;height:auto;grid-template-rows:auto auto} .body{grid-template-columns:1fr} .qr{justify-self:center} }
-  @media print{ body{background:#fff} .toolbar{display:none} .wrap{padding:0} .sticker{box-shadow:none;margin:0 auto} }
+
+  /* أحجام صغيرة للموبايل */
+  @media (max-width:480px){
+    .sticker{width:92vw;height:auto;grid-template-rows:auto auto auto}
+    .body{grid-template-columns:1fr}
+    .qr{justify-self:center}
+  }
+
+  @media print{
+    body{background:#fff}
+    .toolbar{display:none}
+    .wrap{padding:0}
+    .sticker{box-shadow:none;margin:0 auto}
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="sticker" id="sticker">
     <div class="head">
-      <img id="logoCompany" src="FGC.jpeg" alt="الخليجية" onerror="this.style.display='none'"/>
+      <!-- اضبط أحجام اللوجوهات بحيث تكون متوازنة -->
+      <img id="logoCompany" src="https://ga7md3del.github.io/assets/FGC.jpeg" alt="الخليجية" style="height:9mm"/>
       <div class="title">صيانة وقائية</div>
-      <img id="logoCluster" src="TabukCluster.jpeg" alt="تجمع تبوك" onerror="this.style.display='none'"/>
+      <img id="logoCluster" src="https://ga7md3del.github.io/assets/TabukCluster.jpeg" alt="تجمع تبوك" style="height:9mm"/>
     </div>
+
     <div class="body">
       <div class="kv">
         <div class="k">Control Number</div><div class="v" id="v_control">—</div>
@@ -50,9 +76,11 @@
       </div>
       <div class="qr"><img id="qr" alt="QR" style="width:100%;height:100%;object-fit:contain"/></div>
     </div>
+
     <div class="meta" id="meta">&nbsp;</div>
   </div>
 </div>
+
 <div class="toolbar">
   <button class="btn" onclick="window.print()">طباعة</button>
   <button class="btn" id="copyBtn">نسخ رابط المسح</button>
@@ -74,31 +102,65 @@ const firebaseConfig = {
   appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
 };
 const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
+const db = getFirestore(app);
 
 /* ===== Helpers ===== */
 const $ = s => document.querySelector(s);
-/* تاريخ ميلادي بتنسيق عربي */
-const fmt = d => {
-  if (!d) return '—';
-  const dt = new Date(d + 'T00:00:00');
-  return new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {day:'2-digit',month:'2-digit',year:'numeric'}).format(dt);
-};
+// صيغة ميلادي ثابتة (يوم/شهر/سنة)
+const fmt = d => d ? new Date(d).toLocaleDateString('en-GB') : '—';
 const safeId = s => (s||'').trim().replace(/[\/#?\s]/g,'-');
-const currentStickerLink = control =>
-  'https://bioenga7md3del.github.io/PM-Qr-Tabuk/sticker.html#view/' + encodeURIComponent(control);
+function currentStickerLink(control){
+  const base = location.origin + location.pathname;
+  return `${base}#view/${encodeURIComponent(control)}`;
+}
+const addDays = (date, n)=>{ const d=new Date(date); d.setDate(d.getDate()+n); return d; };
+const toISO = d => new Date(d).toISOString().slice(0,10);
+
+/* ===== Load logos from localStorage if provided ===== */
+const lc = localStorage.getItem('pmqr_company_logo');
+const lcl = localStorage.getItem('pmqr_cluster_logo');
+if(lc) $('#logoCompany').src = lc;
+if(lcl) $('#logoCluster').src = lcl;
+
+/* ===== Color logic =====
+   - أحمر: مرّ 30 يوم أو أكثر بعد PM Date.
+   - أخضر: اليوم بين PM Date و Next PM ولم يمر 30 يوم على PM.
+   - أبيض: غير ذلك (أو لا توجد تواريخ).
+*/
+function applyStickerBackground(pmDateStr, nextDateStr){
+  const card = $('#sticker');
+  if(!pmDateStr){ card.style.background = 'var(--base)'; return; }
+
+  const today = new Date();
+  const pm    = new Date(pmDateStr + 'T00:00:00');
+  const next  = nextDateStr ? new Date(nextDateStr + 'T00:00:00') : null;
+
+  const pmPlus30 = addDays(pm, 30);
+
+  // 1) لو مر شهر بعد PM ⇒ أحمر
+  if(today >= pmPlus30){
+    card.style.background = 'var(--over)'; // أحمر
+    return;
+  }
+  // 2) لو بين PM و Next (وأقل من شهر من PM) ⇒ أخضر
+  if(next && today >= pm && today <= next){
+    card.style.background = 'var(--ok)'; // أخضر
+    return;
+  }
+  // 3) غير ذلك ⇒ أبيض
+  card.style.background = 'var(--base)';
+}
 
 /* ===== Load data by hash ===== */
 async function loadSticker(){
-  const hash = (location.hash||'').trim();
-  if(!hash.startsWith('#view/')){ $('#meta').textContent = 'لا يوجد رقم جهاز في الرابط'; return; }
-  const controlRaw = decodeURIComponent(hash.slice(6));
+  const parts = (location.hash||'').split('/');
+  const controlRaw = parts[1] ? decodeURIComponent(parts[1]) : '';
   if(!controlRaw){ $('#meta').textContent = 'لا يوجد رقم جهاز في الرابط'; return; }
 
-  // 1) docId الآمن
+  // 1) جرب docId الآمن
   let snap = await getDoc(doc(db,'assets', safeId(controlRaw)));
   if(!snap.exists()){
-    // 2) بحث بالحقل control كـ fallback
+    // 2) fallback: where control == controlRaw
     const qs = await getDocs(query(collection(db,'assets'), where('control','==', controlRaw)));
     snap = qs.docs[0];
   }
@@ -106,25 +168,47 @@ async function loadSticker(){
   const d = snap.data();
 
   // املأ القيم
-  $('#v_control').textContent = d.control || controlRaw;
-  $('#v_pm').textContent      = fmt(d.pm_date);
-  $('#v_next').textContent    = fmt(d.next_date);
-  $('#v_tech').textContent    = d.tech || '—';
-  $('#v_site').textContent    = d.site || '—';
-  $('#v_dept').textContent    = d.department || '—';
-  $('#meta').textContent      = '';
+  const control = d.control || controlRaw;
+  const pm      = d.pm_date || '';
+  const next    = d.next_date || '';
 
-  // ولّد QR للرابط الحالي (الاستيكر نفسه)
-  const link = currentStickerLink(d.control || controlRaw);
-  QRCode.toDataURL(link, {width: 400, margin: 1})
-    .then(url => { $('#qr').src = url; })
-    .catch(()=>{ $('#qr').src = 'https://chart.googleapis.com/chart?cht=qr&chs=400x400&chl=' + encodeURIComponent(link); });
+  $('#v_control').textContent = control;
+  $('#v_pm').textContent = fmt(pm);
+  $('#v_next').textContent = fmt(next);
+  $('#v_tech').textContent = d.tech || '—';
+  $('#v_site').textContent = d.site || '—';
+  $('#v_dept').textContent = d.department || '—';
+  $('#meta').textContent = '';
 
-  // زر النسخ
+  // خلفية حسب الحالة
+  applyStickerBackground(pm, next);
+
+  // ولّد QR للرابط الحالي (نفس صفحة الاستيكر لهذه المعدّة)
+  const link = currentStickerLink(control);
+  try{
+    const url = await QRCode.toDataURL(link, {width: 400, margin: 1});
+    $('#qr').src = url;
+  }catch{
+    $('#qr').src = 'https://chart.googleapis.com/chart?cht=qr&chs=400x400&chl=' + encodeURIComponent(link);
+  }
+
+  // زر نسخ الرابط
   $('#copyBtn').onclick = async ()=>{
-    try{ await navigator.clipboard.writeText(link); $('#copyBtn').textContent = 'تم النسخ ✅'; setTimeout(()=>$('#copyBtn').textContent='نسخ رابط المسح',1200); }catch{}
+    try{
+      await navigator.clipboard.writeText(link);
+      const btn = document.getElementById('copyBtn');
+      const old = btn.textContent;
+      btn.textContent = 'تم النسخ ✅';
+      setTimeout(()=> btn.textContent = old, 1200);
+    }catch{}
   };
+
+  // طباعة تلقائية إن طلبت ?autoprint=1
+  if(new URLSearchParams(location.search).get('autoprint') === '1'){
+    setTimeout(()=> window.print(), 300);
+  }
 }
+
 window.addEventListener('hashchange', loadSticker);
 window.addEventListener('load', loadSticker);
 </script>
