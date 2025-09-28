@@ -11,6 +11,11 @@
     .pill-warn{ background:#fef9c3; color:#854d0e }
     .pill-bad{ background:#fee2e2; color:#991b1b }
     @media print { .no-print{ display:none !important } }
+
+    /* تمييز صفوف الجدول حسب الحالة (نفس منطق الاستيكر) */
+    .row-active { background:#ecfdf5 }   /* ساري */
+    .row-over   { background:#fee2e2 }   /* منتهي (PM + 30 يوم) */
+    .row-hover:hover { filter:brightness(.98) }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
@@ -80,9 +85,12 @@
       </div>
     </section>
 
-    <!-- Bulk actions -->
+    <!-- Legend + Bulk actions -->
     <div class="no-print flex flex-wrap items-center justify-between gap-2 mb-3">
-      <div class="text-slate-400 text-sm">اختر صفوفًا للحذف الجماعي أو استخدم الأدوات الفردية بكل صف.</div>
+      <div class="flex items-center gap-4 text-slate-300 text-sm">
+        <span class="inline-flex items-center gap-2"><i class="inline-block w-4 h-4 rounded-sm" style="background:#ecfdf5"></i> ساري</span>
+        <span class="inline-flex items-center gap-2"><i class="inline-block w-4 h-4 rounded-sm" style="background:#fee2e2"></i> منتهي (PM + 30 يوم)</span>
+      </div>
       <div class="flex items-center gap-2">
         <button id="btnDeptQR" class="px-3 py-2 rounded bg-yellow-500 text-yellow-950 font-bold">
           🔳 طباعة QR للقسم الحالي
@@ -209,6 +217,20 @@
     const calcNext=pm=>pm? toISO(addMonths(pm,6)):'';
     const safeId=s=>String(s||'').trim().replace(/[\/?#\s]+/g,'-');
     const buildStickerLink = control => `sticker.html#view/${encodeURIComponent(control)}`;
+
+    // منطق تلوين الصفوف (نفس الاستيكر)
+    function rowState(pm, next){
+      if(!pm) return 'none';
+      const today = new Date();
+      const pmDate = new Date(pm + 'T00:00:00');
+      const nextDate = next ? new Date(next + 'T00:00:00') : null;
+      const pmPlus30 = new Date(pmDate); pmPlus30.setDate(pmPlus30.getDate()+30);
+
+      if(today >= pmPlus30) return 'over';       // منتهي
+      if(nextDate && today >= pmDate && today <= nextDate) return 'active'; // ساري
+      return 'none';
+    }
+
     function statusOf(nextISO){
       if(!nextISO) return {key:'over',label:'—',cls:'pill-bad'};
       const today=new Date();
@@ -236,21 +258,15 @@
     let page = 1; const pageSize = 20;
     let editingId = null;
 
-    // ===== Fill filters + datalist from data =====
     function fillFilterOptions(){
       const sites = Array.from(new Set(all.map(x=>x.site).filter(Boolean))).sort();
       const depts = Array.from(new Set(all.map(x=>x.department).filter(Boolean))).sort();
-
-      // Filters
       $('#filter_site').innerHTML = '<option value="">كل المواقع</option>' + sites.map(s=>`<option>${s}</option>`).join('');
       $('#filter_dept').innerHTML = '<option value="">كل الأقسام</option>' + depts.map(s=>`<option>${s}</option>`).join('');
-
-      // datalist suggestions
       $('#sitesList').innerHTML = sites.map(s=>`<option value="${s}"></option>`).join('');
       $('#deptsList').innerHTML = depts.map(s=>`<option value="${s}"></option>`).join('');
     }
 
-    // ===== Filters / KPI / Table / Pagination =====
     function applyFilters(){
       const q = $('#q').value.trim().toLowerCase();
       const fs = $('#filter_site').value;
@@ -295,8 +311,12 @@
 
       for(const d of items){
         const st = statusOf(d.next_date||'');
+        const state = rowState(d.pm_date||'', d.next_date||'');
+
         const tr = document.createElement('tr');
-        tr.className = 'border-b border-slate-800 hover:bg-slate-900/40';
+        tr.className = 'border-b border-slate-800 row-hover';
+        if(state==='active') tr.classList.add('row-active');
+        if(state==='over')   tr.classList.add('row-over');
 
         tr.innerHTML = `
           <td class="p-3 text-center w-10">
@@ -372,7 +392,6 @@
 
       const end = Math.min(start + items.length, filtered.length);
       $('#pageInfo').textContent = filtered.length ? `${start+1}–${end} من ${filtered.length}` : 'لا توجد بيانات';
-      // عند تغيير الصفحة نلغي اختيار الكل
       $('#chkAll').checked = false;
     }
 
