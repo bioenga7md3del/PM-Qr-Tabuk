@@ -1,440 +1,506 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>PM-QR Dashboard</title>
-<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-  :root{ --line:#e5e7eb }
-  .card{background:#fff;border:1px solid var(--line);border-radius:12px}
-  .badge{padding:.15rem .5rem;border-radius:.5rem;font-size:.75rem}
-  .muted{color:#64748b}
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>PM-QR Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .status-pill{ padding:.25rem .5rem; border-radius:999px; font-size:.75rem; font-weight:800 }
+    .pill-ok{ background:#dcfce7; color:#166534 }
+    .pill-warn{ background:#fef9c3; color:#854d0e }
+    .pill-bad{ background:#fee2e2; color:#991b1b }
+    @media print { .no-print{ display:none !important } }
+  </style>
 </head>
-<body class="bg-slate-50 text-slate-800">
-<!-- Notice -->
-<div id="notice" class="sticky top-0 z-50 text-center text-sm py-2 bg-sky-50 border-b border-sky-200">
-  جارِ الاتصال بـ Firebase…
-</div>
-
-<header class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-  <h1 class="font-black text-xl">لوحة الصيانة الوقائية (PM-QR)</h1>
-  <div class="flex gap-2 items-center">
-    <span id="who" class="muted text-sm"></span>
-    <button id="btnLogout" class="hidden px-3 py-2 rounded border">تسجيل الخروج</button>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <!-- Notice -->
+  <div id="notice" class="no-print text-center py-2 font-bold bg-sky-900/40 border-b border-sky-700">
+    جارِ التحقق من الجلسة…
   </div>
-</header>
 
-<!-- ========== شاشة الدخول ========== -->
-<section id="auth" class="max-w-md mx-auto px-4 pb-12">
-  <div class="card p-5">
-    <h2 class="font-extrabold text-lg mb-3">تسجيل الدخول</h2>
-    <div class="grid gap-3">
-      <div>
-        <label class="block text-sm muted mb-1">البريد الإلكتروني</label>
-        <input id="loginEmail" class="w-full px-3 py-2 border rounded" placeholder="you@example.com">
+  <!-- Topbar -->
+  <header class="no-print sticky top-0 z-40 bg-slate-900/80 backdrop-blur border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="text-xl font-extrabold">لوحة PM-QR</div>
+        <span id="userEmail" class="hidden md:inline text-slate-300 text-sm"></span>
       </div>
-      <div>
-        <label class="block text-sm muted mb-1">كلمة المرور</label>
-        <input id="loginPass" type="password" class="w-full px-3 py-2 border rounded" placeholder="••••••••">
-      </div>
-      <button id="btnLogin" class="px-4 py-2 rounded bg-emerald-600 text-white font-bold">دخول</button>
-    </div>
-
-    <hr class="my-5">
-
-    <h3 class="font-extrabold text-base mb-2">تسجيل مستخدم جديد</h3>
-    <div class="grid md:grid-cols-2 gap-3">
-      <div>
-        <label class="block text-sm muted mb-1">الاسم</label>
-        <input id="regName" class="w-full px-3 py-2 border rounded" placeholder="الاسم">
-      </div>
-      <div>
-        <label class="block text-sm muted mb-1">الدور</label>
-        <select id="regRole" class="w-full px-3 py-2 border rounded">
-          <option value="tech">فني</option>
-          <option value="engineer">مهندس</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-sm muted mb-1">البريد الإلكتروني</label>
-        <input id="regEmail" class="w-full px-3 py-2 border rounded" placeholder="email@domain.com">
-      </div>
-      <div>
-        <label class="block text-sm muted mb-1">كلمة المرور</label>
-        <input id="regPass" type="password" class="w-full px-3 py-2 border rounded" placeholder="••••••••">
+      <div class="flex items-center gap-2">
+        <a href="import.html" class="px-3 py-2 rounded-lg bg-emerald-500 text-emerald-950 font-bold hover:opacity-90">📂 رفع ملف إكسل</a>
+        <button id="openAddBtn" class="px-3 py-2 rounded-lg bg-sky-500 text-sky-950 font-bold hover:opacity-90">➕ إضافة جهاز</button>
+        <button id="signOutBtn" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700">تسجيل الخروج</button>
       </div>
     </div>
-    <div class="mt-3">
-      <button id="btnRegister" class="px-4 py-2 rounded bg-sky-600 text-white font-bold">تسجيل</button>
-    </div>
-  </div>
-</section>
+  </header>
 
-<!-- ========== التطبيق بعد الدخول ========== -->
-<div id="app" class="hidden">
-  <main class="max-w-7xl mx-auto px-4 pb-24">
-    <!-- شريط تنقل سريع -->
-    <div class="flex gap-2 mb-4">
-      <a href="qr.html" class="px-3 py-2 rounded border bg-white">صفحة طباعة QR</a>
-      <a href="sticker.html" class="px-3 py-2 rounded border bg-white">صفحة الاستيكر</a>
-    </div>
+  <main class="max-w-7xl mx-auto px-4 py-6">
 
-    <!-- Actions -->
-    <section class="card p-4 mb-4">
-      <div class="flex flex-wrap gap-2 items-center">
-        <button id="btnToggleAdd" class="px-4 py-2 rounded bg-emerald-600 text-white font-bold">+ إضافة جهاز</button>
+    <!-- KPI Cards -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div class="text-slate-400">إجمالي الأجهزة</div>
+        <div id="kpi_total" class="text-3xl font-extrabold">—</div>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div class="text-slate-400">المستحقة هذا الشهر</div>
+        <div id="kpi_due" class="text-3xl font-extrabold">—</div>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div class="text-slate-400">متأخرة</div>
+        <div id="kpi_over" class="text-3xl font-extrabold">—</div>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div class="text-slate-400">خلال 30 يومًا</div>
+        <div id="kpi_30" class="text-3xl font-extrabold">—</div>
+      </div>
+    </section>
 
-        <div class="grow"></div>
-
-        <select id="filterSite" class="px-3 py-2 border rounded w-44">
+    <!-- Filters -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4 no-print">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <input id="q" class="px-3 py-2 rounded bg-slate-950 border border-slate-800" placeholder="بحث بالـ Control أو الفني…"/>
+        <select id="filter_site" class="px-3 py-2 rounded bg-slate-950 border border-slate-800">
           <option value="">كل المواقع</option>
         </select>
-        <select id="filterDept" class="px-3 py-2 border rounded w-44">
+        <select id="filter_dept" class="px-3 py-2 rounded bg-slate-950 border border-slate-800">
           <option value="">كل الأقسام</option>
         </select>
-        <input id="filterSearch" class="px-3 py-2 border rounded w-52" placeholder="بحث بالـ Control…">
-        <button id="btnClearFilters" class="px-3 py-2 rounded border">مسح الفلاتر</button>
-
-        <button id="btnDelete" class="px-3 py-2 rounded bg-red-600 text-white font-bold">🗑️ مسح الأجهزة المحددة</button>
-      </div>
-
-      <!-- Add/Edit panel -->
-      <div id="addPanel" class="mt-4 hidden">
-        <hr class="my-3">
-        <div class="grid md:grid-cols-3 gap-3">
-          <div>
-            <label class="block text-sm text-slate-500 mb-1">Control Number</label>
-            <input id="f_control" class="w-full px-3 py-2 border rounded" placeholder="مثال: AS-0001">
-          </div>
-          <div>
-            <label class="block text-sm text-slate-500 mb-1">الموقع (Site)</label>
-            <input list="siteList" id="f_site" class="w-full px-3 py-2 border rounded" placeholder="اختر/اكتب موقع">
-            <datalist id="siteList"></datalist>
-          </div>
-          <div>
-            <label class="block text-sm text-slate-500 mb-1">القسم (Department)</label>
-            <input list="deptList" id="f_dept" class="w-full px-3 py-2 border rounded" placeholder="اختر/اكتب قسم">
-            <datalist id="deptList"></datalist>
-          </div>
-          <div>
-            <label class="block text-sm text-slate-500 mb-1">الموقع التفصيلي / Location (اختياري)</label>
-            <input id="f_loc" class="w-full px-3 py-2 border rounded" placeholder="مثال: غرفة عمليات 2">
-          </div>
-          <div>
-            <label class="block text-sm text-slate-500 mb-1">وصف تفصيلي (اختياري)</label>
-            <input id="f_desc" class="w-full px-3 py-2 border rounded" placeholder="موديل/سيريال…">
-          </div>
-          <div>
-            <label class="block text-sm text-slate-500 mb-1">القائم بالصيانة (Tech)</label>
-            <input list="techList" id="f_tech" class="w-full px-3 py-2 border rounded" placeholder="اختر/اكتب اسم">
-            <datalist id="techList"></datalist>
-          </div>
-          <div>
-            <label class="block text-sm text-slate-500 mb-1">تاريخ الصيانة الوقائية (PM Date)</label>
-            <input id="f_pm" type="date" class="w-full px-3 py-2 border rounded">
-          </div>
-        </div>
-        <div class="mt-3 flex gap-2">
-          <button id="btnSave" class="px-4 py-2 rounded bg-emerald-600 text-white font-bold">حفظ</button>
-          <button id="btnCancel" class="px-4 py-2 rounded border">إلغاء</button>
-          <div id="editHint" class="text-sm text-slate-500 hidden">أنت تعدل جهاز: <span id="editId" class="font-bold"></span></div>
+        <select id="filter_status" class="px-3 py-2 rounded bg-slate-950 border border-slate-800">
+          <option value="">كل الحالات</option>
+          <option value="ok">محدّث</option>
+          <option value="due">مستحق هذا الشهر</option>
+          <option value="over">متأخر</option>
+          <option value="soon">خلال 30 يومًا</option>
+        </select>
+        <div class="flex gap-2">
+          <button id="refreshBtn" class="px-3 py-2 bg-slate-700 rounded">تحديث</button>
+          <button id="clearFilters" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded">مسح</button>
         </div>
       </div>
     </section>
 
-    <!-- Table -->
-    <section class="card p-0 overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead class="bg-slate-100">
-          <tr>
-            <th class="p-2 text-center"><input type="checkbox" id="chkAll"></th>
-            <th class="p-2 text-right">Control</th>
-            <th class="p-2 text-right">Site</th>
-            <th class="p-2 text-right">Department</th>
-            <th class="p-2 text-right">Location</th>
-            <th class="p-2 text-right">Tech</th>
-            <th class="p-2 text-right">PM Date</th>
-            <th class="p-2 text-right">Next PM</th>
-            <th class="p-2 text-center">إجراءات</th>
-          </tr>
-        </thead>
-        <tbody id="tbody"></tbody>
-      </table>
+    <!-- زر طباعة QR للقسم الحالي -->
+    <div class="no-print flex items-center justify-end mb-3">
+      <button id="btnDeptQR" class="px-3 py-2 rounded bg-yellow-500 text-yellow-950 font-bold">
+        🔳 طباعة QR للقسم الحالي
+      </button>
+    </div>
+
+    <!-- Assets Table -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-800 text-slate-200">
+            <tr>
+              <th class="p-3 text-right">Control</th>
+              <th class="p-3 text-right">Site</th>
+              <th class="p-3 text-right">Department</th>
+              <th class="p-3 text-right">Location</th>
+              <th class="p-3 text-right">PM Date</th>
+              <th class="p-3 text-right">Next PM</th>
+              <th class="p-3 text-right">Tech</th>
+              <th class="p-3 text-right">الحالة</th>
+              <th class="p-3 text-right">أدوات</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="no-print flex items-center justify-between p-3 border-t border-slate-800">
+        <div id="pageInfo" class="text-slate-400 text-sm">—</div>
+        <div class="flex gap-2">
+          <button id="prev" class="px-3 py-1.5 rounded bg-slate-800 border border-slate-700">السابق</button>
+          <button id="next" class="px-3 py-1.5 rounded bg-slate-800 border border-slate-700">التالي</button>
+        </div>
+      </div>
     </section>
   </main>
-</div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-import {
-  getFirestore, collection, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc,
-  serverTimestamp, query, orderBy
-} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+  <!-- Add Asset Modal -->
+  <div id="addModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center no-print">
+    <div class="bg-white text-black rounded-lg shadow-xl w-full max-w-2xl p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold">إضافة جهاز جديد</h2>
+        <button id="closeAdd" class="px-3 py-1 rounded bg-gray-200">✕</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        <input id="a_control" placeholder="Control Number" class="w-full px-3 py-2 border rounded"/>
+        <!-- datalist suggestions -->
+        <input id="a_site" placeholder="الموقع (المستشفى)" class="w-full px-3 py-2 border rounded" list="sitesList"/>
+        <input id="a_dept" placeholder="القسم" class="w-full px-3 py-2 border rounded" list="deptsList"/>
+        <input id="a_loc" placeholder="الوصف التفصيلي (Location)" class="w-full px-3 py-2 border rounded"/>
+        <input id="a_tech" placeholder="الفني القائم بالصيانة" class="w-full px-3 py-2 border rounded"/>
+        <input id="a_pm" type="date" class="w-full px-3 py-2 border rounded"/>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button id="saveAdd" class="px-4 py-2 rounded bg-sky-600 text-white font-bold">حفظ</button>
+      </div>
+    </div>
+  </div>
 
-/* ================= Firebase ================= */
-const firebaseConfig = {
-  apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
-  authDomain: "pmqrtabuk.firebaseapp.com",
-  projectId: "pmqrtabuk",
-  storageBucket: "pmqrtabuk.firebasestorage.app",
-  messagingSenderId: "305570616285",
-  appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
-};
-const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
+  <!-- Edit Asset Modal -->
+  <div id="editModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center no-print">
+    <div class="bg-white text-black rounded-lg shadow-xl w-full max-w-2xl p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold">تعديل جهاز</h2>
+        <button id="closeEdit" class="px-3 py-1 rounded bg-gray-200">✕</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        <input id="m_control" placeholder="Control Number" class="w-full px-3 py-2 border rounded"/>
+        <input id="m_site" placeholder="الموقع (المستشفى)" class="w-full px-3 py-2 border rounded" list="sitesList"/>
+        <input id="m_dept" placeholder="القسم" class="w-full px-3 py-2 border rounded" list="deptsList"/>
+        <input id="m_loc" placeholder="الوصف التفصيلي (Location)" class="w-full px-3 py-2 border rounded"/>
+        <input id="m_tech" placeholder="الفني القائم بالصيانة" class="w-full px-3 py-2 border rounded"/>
+        <input id="m_pm" type="date" class="w-full px-3 py-2 border rounded"/>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button id="saveEdit" class="px-4 py-2 rounded bg-sky-600 text-white font-bold">حفظ</button>
+      </div>
+    </div>
+  </div>
 
-/* ================= Helpers ================= */
-const $ = s => document.querySelector(s);
-function notify(msg, type='ok'){
-  const n = $('#notice');
-  n.textContent = msg;
-  n.className = 'sticky top-0 z-50 text-center text-sm py-2 border-b ' + 
-    (type==='error' ? 'bg-red-50 border-red-200 text-red-700' :
-     type==='info'  ? 'bg-sky-50 border-sky-200 text-sky-700' :
-                      'bg-emerald-50 border-emerald-200 text-emerald-700');
-}
-const safeId = s => (s||'').trim().toLowerCase().replace(/[\/#?\s]/g,'-');
-const toISO  = d => new Date(d).toISOString().slice(0,10);
-function addMonths(dateStr, n=6){ const d=new Date(dateStr); d.setMonth(d.getMonth()+n); return toISO(d); }
-function uniq(arr){ return [...new Set(arr.filter(Boolean))].sort(); }
-async function sha256(text){
-  const enc = new TextEncoder().encode(text);
-  const hash = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
+  <!-- datalist sources -->
+  <datalist id="sitesList"></datalist>
+  <datalist id="deptsList"></datalist>
 
-/* ================= Auth (users collection) ================= */
-let currentUser = null; // {name,email,role}
+  <!-- Firebase + App logic -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js';
+    import {
+      getFirestore, collection, getDocs, query, orderBy, setDoc, doc, serverTimestamp, updateDoc, deleteDoc
+    } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 
-function showApp(show){
-  $('#auth').classList.toggle('hidden', show);
-  $('#app').classList.toggle('hidden', !show);
-  $('#btnLogout').classList.toggle('hidden', !show);
-  $('#who').textContent = show ? (`مرحبًا، ${currentUser?.name||''} — الدور: ${currentUser?.role||''}`) : '';
-  // إخفاء زر المسح لغير المهندس
-  $('#btnDelete').classList.toggle('hidden', currentUser?.role !== 'engineer');
-}
+    const firebaseConfig = {
+      apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
+      authDomain: "pmqrtabuk.firebaseapp.com",
+      projectId: "pmqrtabuk",
+      storageBucket: "pmqrtabuk.firebasestorage.app",
+      messagingSenderId: "305570616285",
+      appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
+    };
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-async function register(){
-  const name = $('#regName').value.trim();
-  const role = $('#regRole').value;
-  const email= $('#regEmail').value.trim().toLowerCase();
-  const pass = $('#regPass').value;
-  if(!name || !email || !pass){ notify('أكمل حقول التسجيل','error'); return; }
-  const id = safeId(email);
-  const uref = doc(db,'users',id);
-  if((await getDoc(uref)).exists()){ notify('المستخدم موجود بالفعل','error'); return; }
-  const passwordHash = await sha256(pass);
-  await setDoc(uref,{name,email,role,passwordHash,createdAt: serverTimestamp()});
-  notify('تم تسجيل المستخدم بنجاح ✅');
-}
+    // ===== Utils =====
+    const $ = s => document.querySelector(s);
+    const notify=(msg,type='info')=>{
+      const n=$('#notice');
+      n.textContent=msg;
+      n.className='no-print text-center py-2 font-bold '+
+        (type==='ok'?'bg-emerald-900/40 border-b border-emerald-700':
+         type==='error'?'bg-red-900/40 border-b border-red-700':
+                        'bg-sky-900/40 border-b border-sky-700');
+    };
+    const toISO=d=>new Date(d).toISOString().slice(0,10);
+    const addMonths=(d,m)=>{const x=new Date(d); x.setMonth(x.getMonth()+m); return x};
+    const calcNext=pm=>pm? toISO(addMonths(pm,6)):'';
+    const safeId=s=>String(s||'').trim().replace(/[\/?#\s]+/g,'-');
+    const buildStickerLink = control => `sticker.html#view/${encodeURIComponent(control)}`;
+    function statusOf(nextISO){
+      if(!nextISO) return {key:'over',label:'—',cls:'pill-bad'};
+      const today=new Date();
+      const next=new Date(nextISO+'T00:00:00');
+      const diff=(next-today)/(1000*60*60*24);
+      if(diff<0) return {key:'over',label:'متأخر',cls:'pill-bad'};
+      const sameMonth = today.getFullYear()===next.getFullYear() && today.getMonth()===next.getMonth();
+      if(sameMonth) return {key:'due',label:'مستحق هذا الشهر',cls:'pill-warn'};
+      if(diff<=30) return {key:'soon',label:'خلال 30 يومًا',cls:'pill-warn'};
+      return {key:'ok',label:'OK',cls:'pill-ok'};
+    }
 
-async function login(){
-  const email= $('#loginEmail').value.trim().toLowerCase();
-  const pass = $('#loginPass').value;
-  if(!email || !pass){ notify('أدخل البريد وكلمة المرور','error'); return; }
-  const uref = doc(db,'users', safeId(email));
-  const snap = await getDoc(uref);
-  if(!snap.exists()){ notify('المستخدم غير موجود','error'); return; }
-  const data = snap.data();
-  const ok = (await sha256(pass)) === data.passwordHash;
-  if(!ok){ notify('كلمة المرور غير صحيحة','error'); return; }
-  currentUser = { name:data.name, email:data.email, role:data.role };
-  localStorage.setItem('pmqr_user', JSON.stringify(currentUser));
-  notify('تم تسجيل الدخول ✅');
-  showApp(true);
-  await loadData();
-}
+    // ===== Auth Guard =====
+    onAuthStateChanged(auth, user=>{
+      if(!user){ location.href='login.html'; return; }
+      $('#userEmail').textContent = user.email || '';
+      notify('تم تسجيل الدخول ✅','ok');
+      loadData();
+    });
+    $('#signOutBtn').onclick = ()=> signOut(auth).then(()=> location.href='login.html');
 
-function logout(){
-  localStorage.removeItem('pmqr_user');
-  currentUser = null;
-  showApp(false);
-  notify('تم تسجيل الخروج','info');
-}
+    // ===== State =====
+    let all = [];
+    let filtered = [];
+    let page = 1; const pageSize = 20;
+    let editingId = null;
 
-/* ================= Data ================= */
-let all = [];
-let filtered = [];
-let editingId = null;
+    // ===== Fill filters + datalist from data =====
+    function fillFilterOptions(){
+      const sites = Array.from(new Set(all.map(x=>x.site).filter(Boolean))).sort();
+      const depts = Array.from(new Set(all.map(x=>x.department).filter(Boolean))).sort();
 
-async function loadData(){
-  notify('جارِ تحميل البيانات…','info');
-  const qs = await getDocs(query(collection(db,'assets'), orderBy('control')));
-  all = qs.docs.map(d=> ({ id:d.id, ...d.data() }));
-  filtered = all.slice();
-  fillDatalists();
-  fillFilters();
-  renderTable();
-  notify('تم التحميل ✅');
-}
+      // Filters
+      $('#filter_site').innerHTML = '<option value="">كل المواقع</option>' + sites.map(s=>`<option>${s}</option>`).join('');
+      $('#filter_dept').innerHTML = '<option value="">كل الأقسام</option>' + depts.map(s=>`<option>${s}</option>`).join('');
 
-function fillDatalists(){
-  $('#siteList').innerHTML = uniq(all.map(x=>x.site)).map(s=>`<option value="${s}">`).join('');
-  $('#deptList').innerHTML = uniq(all.map(x=>x.department)).map(s=>`<option value="${s}">`).join('');
-  $('#techList').innerHTML = uniq(all.map(x=>x.tech)).map(s=>`<option value="${s}">`).join('');
-}
-function fillFilters(){
-  $('#filterSite').innerHTML = '<option value="">كل المواقع</option>' + uniq(all.map(x=>x.site)).map(s=>`<option>${s}</option>`).join('');
-  $('#filterDept').innerHTML = '<option value="">كل الأقسام</option>' + uniq(all.map(x=>x.department)).map(s=>`<option>${s}</option>`).join('');
-}
+      // datalist suggestions
+      $('#sitesList').innerHTML = sites.map(s=>`<option value="${s}"></option>`).join('');
+      $('#deptsList').innerHTML = depts.map(s=>`<option value="${s}"></option>`).join('');
+    }
 
-function applyFilters(){
-  const s = $('#filterSite').value.trim();
-  const d = $('#filterDept').value.trim();
-  const q = $('#filterSearch').value.trim().toLowerCase();
-  filtered = all.filter(x=>{
-    const okS = !s || x.site===s;
-    const okD = !d || x.department===d;
-    const okQ = !q || (x.control||'').toLowerCase().includes(q);
-    return okS && okD && okQ;
-  });
-  renderTable();
-}
+    // ===== Filters / KPI / Table / Pagination =====
+    function applyFilters(){
+      const q = $('#q').value.trim().toLowerCase();
+      const fs = $('#filter_site').value;
+      const fd = $('#filter_dept').value;
+      const fstatus = $('#filter_status').value;
 
-function rowHTML(x){
-  const soon = x.next_date ? (new Date(x.next_date) - new Date() < 1000*60*60*24*14) : false;
-  return `
-    <tr class="border-b">
-      <td class="p-2 text-center"><input type="checkbox" class="rchk" value="${x.id}"></td>
-      <td class="p-2 font-bold">${x.control||''}</td>
-      <td class="p-2">${x.site||''}</td>
-      <td class="p-2">${x.department||''}</td>
-      <td class="p-2">${x.location||''}</td>
-      <td class="p-2">${x.tech||''}</td>
-      <td class="p-2">${x.pm_date||''}</td>
-      <td class="p-2">${x.next_date||''} ${soon?'<span class="badge bg-amber-100 text-amber-800">قريب</span>':''}</td>
-      <td class="p-2 text-center">
-        <a target="_blank" class="px-2 py-1 border rounded" href="sticker.html#view/${encodeURIComponent(x.control||'')}">استيكر</a>
-        <a target="_blank" class="px-2 py-1 border rounded" href="qr.html?control=${encodeURIComponent(x.control||'')}">QR</a>
-        <button class="px-2 py-1 border rounded" onclick="pmDone('${x.id}')">تحديث PM</button>
-        <button class="px-2 py-1 border rounded" onclick="startEdit('${x.id}')">تعديل</button>
-      </td>
-    </tr>
-  `;
-}
+      filtered = all.filter(x=>{
+        const matchQ = !q || (String(x.control||'').toLowerCase().includes(q) || String(x.tech||'').toLowerCase().includes(q));
+        const matchS = !fs || x.site===fs;
+        const matchD = !fd || x.department===fd;
+        const st = statusOf(x.next_date||'').key;
+        const matchT = !fstatus || st===fstatus;
+        return matchQ && matchS && matchD && matchT;
+      });
+      page = 1;
+      renderTable();
+      renderKPI();
+    }
 
-function renderTable(){
-  $('#tbody').innerHTML = filtered.map(rowHTML).join('') ||
-    `<tr><td colspan="9" class="p-6 text-center muted">لا توجد بيانات مطابقة</td></tr>`;
-  $('#chkAll').checked = false;
-}
+    function renderKPI(){
+      $('#kpi_total').textContent = all.length;
+      let due=0, over=0, soon=0;
+      const today = new Date();
+      for(const x of all){
+        const st = statusOf(x.next_date||'').key;
+        if(st==='over') over++;
+        if(st==='soon') soon++;
+        if(x.next_date){
+          const d = new Date(x.next_date+'T00:00:00');
+          if(d.getFullYear()===today.getFullYear() && d.getMonth()===today.getMonth()) due++;
+        }
+      }
+      $('#kpi_due').textContent = due;
+      $('#kpi_over').textContent = over;
+      $('#kpi_30').textContent = soon;
+    }
 
-/* ===== Add / Edit ===== */
-function resetForm(){
-  ['f_control','f_site','f_dept','f_loc','f_desc','f_tech','f_pm'].forEach(id=> $('#'+id).value='');
-  editingId = null;
-  $('#editHint').classList.add('hidden');
-  $('#editId').textContent = '';
-}
-function openPanel(){ $('#addPanel').classList.remove('hidden'); }
-function closePanel(){ $('#addPanel').classList.add('hidden'); resetForm(); }
+    function renderTable(){
+      const tbody = $('#tbody'); tbody.innerHTML='';
+      const start = (page-1)*pageSize;
+      const items = filtered.slice(start, start+pageSize);
 
-window.startEdit = function(id){
-  const x = all.find(a=>a.id===id);
-  if(!x) return;
-  openPanel();
-  editingId = id;
-  $('#editHint').classList.remove('hidden');
-  $('#editId').textContent = x.control||id;
+      for(const d of items){
+        const st = statusOf(d.next_date||'');
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-slate-800 hover:bg-slate-900/40';
 
-  $('#f_control').value = x.control||'';
-  $('#f_site').value    = x.site||'';
-  $('#f_dept').value    = x.department||'';
-  $('#f_loc').value     = x.location||'';
-  $('#f_desc').value    = x.description||'';
-  $('#f_tech').value    = x.tech||'';
-  $('#f_pm').value      = x.pm_date||'';
-};
+        tr.innerHTML = `
+          <td class="p-3 font-bold">${d.control||'—'}</td>
+          <td class="p-3">${d.site||'—'}</td>
+          <td class="p-3">${d.department||'—'}</td>
+          <td class="p-3">${d.location||'—'}</td>
+          <td class="p-3">${d.pm_date||'—'}</td>
+          <td class="p-3">${d.next_date||'—'}</td>
+          <td class="p-3">${d.tech||'—'}</td>
+          <td class="p-3"><span class="status-pill ${st.cls}">${st.label}</span></td>
+          <td class="p-3"><div class="flex flex-wrap gap-2"></div></td>
+        `;
 
-$('#btnToggleAdd').addEventListener('click', ()=>{ 
-  if($('#addPanel').classList.contains('hidden')) openPanel(); else closePanel();
-});
-$('#btnCancel').addEventListener('click', closePanel);
+        const tools = tr.querySelector('div');
+        const controlSafe = encodeURIComponent(d.control||'');
 
-$('#btnSave').addEventListener('click', async ()=>{
-  const control = $('#f_control').value.trim();
-  const site    = $('#f_site').value.trim();
-  const dept    = $('#f_dept').value.trim();
-  const loc     = $('#f_loc').value.trim();
-  const desc    = $('#f_desc').value.trim();
-  const tech    = $('#f_tech').value.trim();
-  const pm      = $('#f_pm').value;
+        // ✏️ تعديل
+        const btnEdit = document.createElement('button');
+        btnEdit.className = 'px-2 py-1 rounded bg-sky-500 text-sky-950 font-bold';
+        btnEdit.textContent = '✏️ تعديل';
+        btnEdit.dataset.edit = d.id || (d.control? d.control.replace(/[\/?#\s]+/g,'-') : '');
+        btnEdit.dataset.control = encodeURIComponent(d.control||'');
+        btnEdit.dataset.site    = encodeURIComponent(d.site||'');
+        btnEdit.dataset.dept    = encodeURIComponent(d.department||'');
+        btnEdit.dataset.loc     = encodeURIComponent(d.location||'');
+        btnEdit.dataset.tech    = encodeURIComponent(d.tech||'');
+        btnEdit.dataset.pm      = encodeURIComponent(d.pm_date||'');
+        tools.appendChild(btnEdit);
 
-  if(!control || !pm){ notify('أدخل Control و PM Date','error'); return; }
-  const next = addMonths(pm,6);
+        // ✅ تم عمل الصيانة
+        const btnQuick = document.createElement('button');
+        btnQuick.className = 'px-2 py-1 rounded bg-emerald-500 text-emerald-950 font-bold';
+        btnQuick.textContent = '✅ تم عمل الصيانة';
+        btnQuick.dataset.quickpm = d.id || (d.control? d.control.replace(/[\/?#\s]+/g,'-') : '');
+        tools.appendChild(btnQuick);
 
-  const payload = { control, site, department:dept, location:loc, description:desc, tech,
-                    pm_date: pm, next_date: next, updatedAt: serverTimestamp() };
+        // 🏷️ استيكر
+        const aSticker = document.createElement('a');
+        aSticker.className = 'px-2 py-1 rounded bg-indigo-500 text-indigo-50 font-bold';
+        aSticker.textContent = '🏷️ استيكر';
+        aSticker.target = '_blank';
+        aSticker.href = `sticker.html#view/${controlSafe}`;
+        tools.appendChild(aSticker);
 
-  try{
-    const id = editingId || safeId(control);
-    await setDoc(doc(db,'assets', id), payload, {merge:true});
-    notify('تم الحفظ ✅');
-    closePanel();
-    await loadData();
-  }catch(e){
-    console.error(e);
-    notify('فشل الحفظ: '+e.message,'error');
-  }
-});
+        // 🔳 QR
+        const aQR = document.createElement('a');
+        aQR.className = 'px-2 py-1 rounded bg-yellow-500 text-yellow-950 font-bold';
+        aQR.textContent = '🔳 QR';
+        aQR.target = '_blank';
+        aQR.href = `qr.html?control=${controlSafe}`;
+        tools.appendChild(aQR);
 
-// تحديث PM الآن
-window.pmDone = async function(id){
-  if(!confirm('تأكيد: تعيين PM Date لليوم واحتساب Next بعد 6 أشهر؟')) return;
-  const today = toISO(new Date());
-  try{
-    await updateDoc(doc(db,'assets',id), { pm_date: today, next_date: addMonths(today,6), updatedAt: serverTimestamp() });
-    notify('تم التحديث ✅');
-    await loadData();
-  }catch(e){
-    console.error(e); notify('فشل التحديث: '+e.message,'error');
-  }
-};
+        // 🖨️ طباعة الاستيكر
+        const aPrint = document.createElement('a');
+        aPrint.className = 'px-2 py-1 rounded bg-pink-500 text-pink-50 font-bold';
+        aPrint.textContent = '🖨️ طباعة';
+        aPrint.target = '_blank';
+        aPrint.href = `sticker.html?autoprint=1#view/${controlSafe}`;
+        tools.appendChild(aPrint);
 
-/* ===== Delete selected (engineer only) ===== */
-$('#chkAll').addEventListener('click', e=>{
-  document.querySelectorAll('.rchk').forEach(c=> c.checked = e.target.checked);
-});
-$('#btnDelete').addEventListener('click', async ()=>{
-  if(currentUser?.role !== 'engineer'){ notify('الحذف متاح للمهندس فقط','error'); return; }
-  const ids = Array.from(document.querySelectorAll('.rchk:checked')).map(c=>c.value);
-  if(!ids.length){ notify('اختر جهازًا واحدًا على الأقل','error'); return; }
-  if(!confirm('هل أنت متأكد من مسح الأجهزة المحددة؟')) return;
-  notify('جارِ المسح…','info');
-  for(const id of ids){
-    try{ await deleteDoc(doc(db,'assets',id)); }catch(e){ console.error(e); }
-  }
-  notify('تم المسح ✅');
-  await loadData();
-});
+        // 🗑️ مسح
+        const btnDelete = document.createElement('button');
+        btnDelete.className = 'px-2 py-1 rounded bg-red-600 text-white font-bold';
+        btnDelete.textContent = '🗑️ مسح';
+        btnDelete.dataset.del = d.id || (d.control? d.control.replace(/[\/?#\s]+/g,'-') : '');
+        tools.appendChild(btnDelete);
 
-/* ===== Filters ===== */
-$('#filterSite').addEventListener('change', applyFilters);
-$('#filterDept').addEventListener('change', applyFilters);
-$('#filterSearch').addEventListener('input', applyFilters);
-$('#btnClearFilters').addEventListener('click', ()=>{
-  $('#filterSite').value=''; $('#filterDept').value=''; $('#filterSearch').value='';
-  applyFilters();
-});
+        tbody.appendChild(tr);
+      }
 
-/* ===== Auth events ===== */
-$('#btnRegister').addEventListener('click', register);
-$('#btnLogin').addEventListener('click', login);
-$('#btnLogout').addEventListener('click', logout);
+      const end = Math.min(start + items.length, filtered.length);
+      $('#pageInfo').textContent = filtered.length ? `${start+1}–${end} من ${filtered.length}` : 'لا توجد بيانات';
+    }
 
-/* ===== Boot ===== */
-notify('تم الاتصال بـ Firebase ✅','ok');
-const saved = localStorage.getItem('pmqr_user');
-if(saved){
-  try{ currentUser = JSON.parse(saved); showApp(true); loadData(); }
-  catch{ showApp(false); }
-}else{
-  showApp(false);
-}
-</script>
+    // Pagination
+    $('#prev').onclick = ()=>{ if(page>1){ page--; renderTable(); } };
+    $('#next').onclick = ()=>{ if(page*pageSize < filtered.length){ page++; renderTable(); } };
+
+    // Filters events
+    ['q','filter_site','filter_dept','filter_status'].forEach(id=>{
+      const el=document.getElementById(id);
+      el.addEventListener('input', applyFilters);
+      el.addEventListener('change', applyFilters);
+    });
+    $('#refreshBtn').onclick = loadData;
+    $('#clearFilters').onclick = ()=>{ ['q','filter_site','filter_dept','filter_status'].forEach(id=> document.getElementById(id).value=''); applyFilters(); };
+
+    // زر طباعة QR للقسم الحالي
+    document.getElementById('btnDeptQR')?.addEventListener('click', ()=>{
+      const site = document.getElementById('filter_site').value;
+      const dept = document.getElementById('filter_dept').value;
+      const qs = new URLSearchParams();
+      if(site) qs.set('site', site);
+      if(dept) qs.set('dept', dept);
+      const url = qs.toString() ? `qr.html?${qs.toString()}` : 'qr.html';
+      window.open(url, '_blank');
+    });
+
+    // ===== Add Modal =====
+    const addModal = $('#addModal');
+    const openAdd  = ()=>{ addModal.classList.remove('hidden'); addModal.classList.add('flex'); };
+    const closeAdd = ()=>{ addModal.classList.add('hidden'); addModal.classList.remove('flex'); };
+    $('#openAddBtn').onclick = openAdd;
+    $('#closeAdd').onclick   = closeAdd;
+
+    $('#saveAdd').onclick = async ()=>{
+      const control = $('#a_control').value.trim();
+      if(!control){ notify('أدخل Control Number','error'); return; }
+      const data = {
+        control,
+        site: $('#a_site').value.trim(),
+        department: $('#a_dept').value.trim(),
+        location: $('#a_loc').value.trim(),
+        tech: $('#a_tech').value.trim(),
+        pm_date: $('#a_pm').value || '',
+      };
+      data.next_date = data.pm_date ? calcNext(new Date(data.pm_date)) : '';
+      try{
+        await setDoc(doc(db,'assets', safeId(control)), {...data, updatedAt: serverTimestamp()});
+        notify('تم الحفظ ✅','ok');
+        closeAdd();
+        await loadData();
+      }catch(e){ notify('فشل الحفظ: '+e.message,'error'); }
+    };
+
+    // ===== Edit Modal / Quick PM / Delete (delegation) =====
+    const editModal = $('#editModal');
+    const openEdit  = ()=>{ editModal.classList.remove('hidden'); editModal.classList.add('flex'); };
+    const closeEdit = ()=>{ editModal.classList.add('hidden'); editModal.classList.remove('flex'); };
+    $('#closeEdit').onclick = closeEdit;
+
+    document.addEventListener('click', async (e)=>{
+      // فتح التعديل
+      const be = e.target.closest('button[data-edit]');
+      if(be){
+        const id = be.dataset.edit;
+        editingId = id;
+        $('#m_control').value = decodeURIComponent(be.dataset.control||'');
+        $('#m_site').value    = decodeURIComponent(be.dataset.site||'');
+        $('#m_dept').value    = decodeURIComponent(be.dataset.dept||'');
+        $('#m_loc').value     = decodeURIComponent(be.dataset.loc||'');
+        $('#m_tech').value    = decodeURIComponent(be.dataset.tech||'');
+        $('#m_pm').value      = decodeURIComponent(be.dataset.pm||'');
+        openEdit();
+        return;
+      }
+
+      // تم عمل الصيانة الآن
+      const bq = e.target.closest('button[data-quickpm]');
+      if(bq){
+        try{
+          const id = bq.dataset.quickpm;
+          const today = toISO(new Date());
+          const next  = calcNext(new Date(today));
+          await updateDoc(doc(db,'assets', id), { pm_date: today, next_date: next, updatedAt: serverTimestamp() });
+          notify('تم تسجيل الصيانة اليوم ✅','ok');
+          await loadData();
+        }catch(err){ notify('فشل التحديث: ' + err.message, 'error'); }
+        return;
+      }
+
+      // حذف الجهاز
+      const bd = e.target.closest('button[data-del]');
+      if(bd){
+        if(!confirm('هل تريد مسح هذا الجهاز نهائيًا؟')) return;
+        try{
+          await deleteDoc(doc(db,'assets', bd.dataset.del));
+          notify('تم المسح 🗑️','ok');
+          await loadData();
+        }catch(err){ notify('فشل المسح: '+err.message,'error'); }
+        return;
+      }
+    });
+
+    $('#saveEdit').onclick = async ()=>{
+      const control = $('#m_control').value.trim();
+      if(!control){ notify('أدخل Control Number','error'); return; }
+      const data = {
+        control,
+        site: $('#m_site').value.trim(),
+        department: $('#m_dept').value.trim(),
+        location: $('#m_loc').value.trim(),
+        tech: $('#m_tech').value.trim(),
+        pm_date: $('#m_pm').value || '',
+      };
+      data.next_date = data.pm_date ? calcNext(new Date(data.pm_date)) : '';
+      const id = editingId || safeId(control);
+      try{
+        await setDoc(doc(db,'assets', id), {...data, updatedAt: serverTimestamp()});
+        notify('تم الحفظ ✅','ok');
+        closeEdit();
+        await loadData();
+      }catch(e){ notify('فشل الحفظ: '+e.message,'error'); }
+    };
+
+    // ===== Load data =====
+    async function loadData(){
+      try{
+        notify('جارِ تحميل البيانات…');
+        const qs = await getDocs(query(collection(db,'assets'), orderBy('control')));
+        all = qs.docs.map(d=> ({ id: d.id, ...d.data() }));
+        fillFilterOptions();
+        filtered = all.slice();
+        renderTable();
+        renderKPI();
+        notify('تم التحميل ✅','ok');
+      }catch(e){ notify('فشل التحميل: '+e.message,'error'); }
+    }
+
+    // أخطاء عامة
+    window.addEventListener('error', e=> notify('خطأ: '+(e.error?.message||e.message),'error'));
+    window.addEventListener('unhandledrejection', e=> notify('خطأ: '+(e.reason?.message||e.reason),'error'));
+  </script>
 </body>
 </html>
