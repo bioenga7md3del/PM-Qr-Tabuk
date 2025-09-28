@@ -123,7 +123,7 @@
       <div>
         <label class="block text-slate-600 text-sm mb-1">هوامش داخلية (سم)</label>
         <input id="padcm" type="number" step="0.1" class="w-24 px-2 py-2 border rounded" value="1.5">
-        <div class="text-xs text-slate-500 mt-1">اجعلها 0.3 سم مع ورقة 6×4</div>
+        <div class="text-xs text-slate-500 mt-1">عند 6×4 سم يفضل 0.3 سم</div>
       </div>
 
       <div class="flex items-end">
@@ -155,7 +155,7 @@
   <section id="canvasArea" class="sheet" style="width:21cm; height:29.7cm;">
     <div class="qr-wrap" id="qrWrap" style="padding:1.5cm">
       <div id="qrTitle" class="qr-title" style="font-size:20pt; margin-bottom:0.6cm;">الصيانة الوقائية</div>
-      <img id="qrImg" alt="QR" style="width:12cm; height:12cm; max-width:100%; max-height:100%;">
+      <img id="qrImg" alt="QR" style="max-width:100%; max-height:100%;">
       <div id="ctrl" class="control-text" style="margin-top:0.6cm; font-size:16pt;">—</div>
     </div>
   </section>
@@ -196,6 +196,9 @@
     return `${stickerAbs}#view/${encodeURIComponent(control)}`;
   }
 
+  // تحويل pt إلى cm (تقريبي)
+  const ptToCm = (pt)=> pt * 0.0352778;
+
   // ضبط حجم ورقة الطباعة (@page)
   function setPageSizeCSS(wcm,hcm){
     const id='__page_size_style__';
@@ -214,16 +217,23 @@
 
   // ===== وضع مفرد =====
   function applySingleSettings(){
-    const wcm = parseFloat($('#wcm').value||'21');   // A4 افتراضي
-    const hcm = parseFloat($('#hcm').value||'29.7'); // A4 افتراضي
-    const pad = parseFloat($('#padcm').value||'1.5');
-    const pct = Math.max(10, Math.min(100, parseInt($('#qrPct').value||'60',10)));
-    const titlePt = Math.max(8, parseInt($('#titlePt').value||'20',10));
-    const fontPt  = Math.max(8, parseInt($('#fontPt').value||'16',10));
+    const wcm = parseFloat($('#wcm').value||'21');   // افتراضي A4
+    const hcm = parseFloat($('#hcm').value||'29.7'); // افتراضي A4
 
-    // لو preset 6×4 سم استخدم هوامش صغيرة تلقائيًا لو المستخدم نسي
-    if((wcm===6 && hcm===4) || (wcm===4 && hcm===6)){
-      if(pad > 0.5){ $('#padcm').value = 0.3; }
+    // قيم من الواجهة
+    let pad     = parseFloat($('#padcm').value||'1.5');
+    let qrPct   = Math.max(10, Math.min(100, parseInt($('#qrPct').value||'60',10)));
+    let titlePt = Math.max(8, parseInt($('#titlePt').value||'20',10));
+    let fontPt  = Math.max(8, parseInt($('#fontPt').value||'16',10));
+
+    // لو 6×4 اضبط قيم مناسبة تلقائيًا
+    const is6x4 = (wcm===6 && hcm===4) || (wcm===4 && hcm===6);
+    if(is6x4){
+      pad = 0.3; qrPct = 75; titlePt = 12; fontPt = 10;
+      $('#padcm').value  = pad;
+      $('#qrPct').value  = qrPct;
+      $('#titlePt').value= titlePt;
+      $('#fontPt').value = fontPt;
     }
 
     // ورقة بمقاس فعلي
@@ -232,16 +242,23 @@
     setPageSizeCSS(wcm, hcm);
 
     // حواف داخلية
-    const padUse = parseFloat($('#padcm').value);
-    $('#qrWrap').style.padding = `${padUse}cm`;
+    $('#qrWrap').style.padding = `${pad}cm`;
 
-    // حجم QR كنسبة من عرض الورقة (بعد الحواف)
-    const usableW = wcm - (padUse*2);
-    const sizeCM  = Math.max(1, usableW * (pct/100));
-    $('#qrImg').style.width  = `${sizeCM}cm`;
-    $('#qrImg').style.height = `${sizeCM}cm`;
+    // حساب المساحة المتاحة
+    const usableW = Math.max(0.5, wcm - 2*pad);
+    const titleH = ptToCm(titlePt) * 1.1;
+    const ctrlH  = ptToCm(fontPt)  * 1.1;
+    const spacing = 0.4; // سم
+    const usableH = Math.max(0.5, hcm - 2*pad - titleH - ctrlH - spacing*2);
 
-    // حجم الخطوط
+    // حجم الـQR: أصغر من (نسبة العرض) و (الارتفاع المتاح)
+    const wantedByWidth = usableW * (qrPct/100);
+    const sizeCM = Math.max(0.8, Math.min(wantedByWidth, usableH));
+
+    // تطبيق الأحجام
+    const qrImg = $('#qrImg');
+    qrImg.style.width  = `${sizeCM}cm`;
+    qrImg.style.height = `${sizeCM}cm`;
     $('#qrTitle').style.fontSize = `${titlePt}pt`;
     $('#ctrl').style.fontSize    = `${fontPt}pt`;
   }
@@ -256,7 +273,7 @@
     const link = buildStickerLink(control);
     $('#ctrl').textContent = control;
 
-    // حساب دقة مناسبة للطباعة: 118px/cm ≈ 300DPI
+    // دقة مناسبة للطباعة: ~118px/cm ≈ 300DPI
     const wcm = parseFloat($('#wcm').value||'21');
     const pad = parseFloat($('#padcm').value||'1.5');
     const pct = Math.max(10, Math.min(100, parseInt($('#qrPct').value||'60',10)));
@@ -277,7 +294,6 @@
   }
 
   async function loadSitesDeptsForSelects(){
-    // اسحب قائمة للأقسام والمواقع
     const qs = await getDocs(query(collection(db,'assets'), orderBy('site')));
     const arr = qs.docs.map(d=> d.data());
     const sites = [...new Set(arr.map(x=>x.site).filter(Boolean))].sort();
@@ -297,14 +313,12 @@
 
   async function renderDept(site, dept){
     clearNotice();
-    // أخفِ ورقة المفرد، وأظهر شبكة القسم
     $('#canvasArea').style.display='none';
     $('#printArea').style.display='grid';
 
     const area = $('#printArea');
     area.innerHTML = '';
 
-    // جِب كل الأجهزة وفلتر
     const all = (await getDocs(query(collection(db,'assets'), orderBy('control')))).docs.map(d=> d.data());
     const list = all.filter(x=>{
       const sOK = !site || x.site===site;
@@ -335,7 +349,6 @@
       $('#deptControls').classList.add('hidden');
       $('#singleSettings').classList.remove('hidden');
       $('#deptSettings').classList.add('hidden');
-      // عرض المفرد افتراضياً
       $('#canvasArea').style.display='block';
       $('#printArea').style.display='none';
     }else{
@@ -343,7 +356,6 @@
       $('#deptControls').classList.remove('hidden');
       $('#singleSettings').classList.add('hidden');
       $('#deptSettings').classList.remove('hidden');
-      // عرض القسم افتراضياً
       $('#canvasArea').style.display='none';
       $('#printArea').style.display='grid';
       loadSitesDeptsForSelects().catch(()=>{});
@@ -360,8 +372,12 @@
     btn.addEventListener('click', ()=>{
       const [w,h]=btn.dataset.preset.split('x').map(Number);
       $('#wcm').value=w; $('#hcm').value=h;
-      // هوامش موصى بها لورقة 6×4 سم
-      if((w===6 && h===4) || (w===4 && h===6)) $('#padcm').value = 0.3;
+      if((w===6 && h===4) || (w===4 && h===6)){
+        $('#padcm').value  = 0.3;
+        $('#qrPct').value  = 75;
+        $('#titlePt').value= 12;
+        $('#fontPt').value = 10;
+      }
       applySingleSettings();
       const c = $('#singleControl').value.trim();
       if(c) renderSingle(c);
@@ -400,7 +416,6 @@
       });
     });
   }else{
-    // افتراضي: مفرد يدوي (A4)
     showMode('single');
   }
 </script>
