@@ -12,15 +12,13 @@
     .pill-bad{ background:#fee2e2; color:#991b1b }
     @media print { .no-print{ display:none !important } }
 
-    /* تلوين الصفوف حسب الحالة (نفس منطق الاستيكر) */
-    .row-active { background:#ecfdf5 }   /* ساري */
-    .row-over   { background:#fee2e2 }   /* منتهي (PM + 30 يوم) */
+    /* تلوين صفوف الجدول حسب الحالة (ساري/منتهي) */
+    .row-active { background:#ecfdf5 }   /* ساري (PM → Next+1M) */
+    .row-over   { background:#fee2e2 }   /* منتهي (بعد Next+1M) */
     .row-hover:hover { filter:brightness(.98) }
 
-    /* إجبار لون نص الجدول يكون داكن وواضح */
-    #tbody tr,
-    #tbody tr.row-active,
-    #tbody tr.row-over { color:#0f172a; } /* slate-900 */
+    /* إجبار لون نص الجدول داكن وواضح */
+    #tbody tr, #tbody tr.row-active, #tbody tr.row-over { color:#0f172a; } /* slate-900 */
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
@@ -45,7 +43,7 @@
   </header>
 
   <main class="max-w-7xl mx-auto px-4 py-6">
-    <!-- KPI Cards -->
+    <!-- KPIs -->
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
         <div class="text-slate-400">إجمالي الأجهزة</div>
@@ -89,19 +87,15 @@
       </div>
     </section>
 
-    <!-- Legend + Bulk -->
+    <!-- Legend + bulk -->
     <div class="no-print flex flex-wrap items-center justify-between gap-2 mb-3">
       <div class="flex items-center gap-4 text-slate-300 text-sm">
-        <span class="inline-flex items-center gap-2"><i class="inline-block w-4 h-4 rounded-sm" style="background:#ecfdf5"></i> ساري</span>
-        <span class="inline-flex items-center gap-2"><i class="inline-block w-4 h-4 rounded-sm" style="background:#fee2e2"></i> منتهي (PM + 30 يوم)</span>
+        <span class="inline-flex items-center gap-2"><i class="inline-block w-4 h-4 rounded-sm" style="background:#ecfdf5"></i> ساري (حتى Next + شهر)</span>
+        <span class="inline-flex items-center gap-2"><i class="inline-block w-4 h-4 rounded-sm" style="background:#fee2e2"></i> منتهي (بعد Next + شهر)</span>
       </div>
       <div class="flex items-center gap-2">
-        <button id="btnDeptQR" class="px-3 py-2 rounded bg-yellow-500 text-yellow-950 font-bold">
-          🔳 طباعة QR للقسم الحالي
-        </button>
-        <button id="btnBulkDelete" class="px-3 py-2 rounded bg-red-600 text-white font-bold">
-          🗑️ مسح الأجهزة المحددة
-        </button>
+        <button id="btnDeptQR" class="px-3 py-2 rounded bg-yellow-500 text-yellow-950 font-bold">🔳 طباعة QR للقسم الحالي</button>
+        <button id="btnBulkDelete" class="px-3 py-2 rounded bg-red-600 text-white font-bold">🗑️ مسح الأجهزة المحددة</button>
       </div>
     </div>
 
@@ -126,8 +120,6 @@
           <tbody id="tbody"></tbody>
         </table>
       </div>
-
-      <!-- Pagination -->
       <div class="no-print flex items-center justify-between p-3 border-t border-slate-800">
         <div id="pageInfo" class="text-slate-400 text-sm">—</div>
         <div class="flex gap-2">
@@ -180,7 +172,7 @@
     </div>
   </div>
 
-  <!-- datalist sources -->
+  <!-- datalist -->
   <datalist id="sitesList"></datalist>
   <datalist id="deptsList"></datalist>
 
@@ -218,31 +210,32 @@
     const addMonths=(d,m)=>{const x=new Date(d); x.setMonth(x.getMonth()+m); return x};
     const calcNext=pm=>pm? toISO(addMonths(pm,6)):'';
     const safeId=s=>String(s||'').trim().replace(/[\/?#\s]+/g,'-');
-    const buildStickerLink = control => `sticker.html#view/${encodeURIComponent(control)}`;
 
-    // منطق تلوين الصفوف (نفس الاستيكر)
+    // تلوين الصفوف بمنطق Next PM + شهر
     function rowState(pm, next){
-      if(!pm) return 'none';
-      const today = new Date();
-      const pmDate = new Date(pm + 'T00:00:00');
-      const nextDate = next ? new Date(next + 'T00:00:00') : null;
-      const pmPlus30 = new Date(pmDate); pmPlus30.setDate(pmPlus30.getDate()+30);
-
-      if(today >= pmPlus30) return 'over';       // منتهي
-      if(nextDate && today >= pmDate && today <= nextDate) return 'active'; // ساري
+      if(!pm || !next) return 'none';
+      const today    = new Date();
+      const pmDate   = new Date(pm   + 'T00:00:00');
+      const nextDate = new Date(next + 'T00:00:00');
+      const grace    = new Date(nextDate); grace.setMonth(grace.getMonth()+1);
+      if(today > grace) return 'over';                     // منتهي
+      if(today >= pmDate && today <= grace) return 'active';// ساري
       return 'none';
     }
 
+    // عمود الحالة: متأخر فقط بعد مهلة الشهر
     function statusOf(nextISO){
       if(!nextISO) return {key:'over',label:'—',cls:'pill-bad'};
-      const today=new Date();
-      const next=new Date(nextISO+'T00:00:00');
-      const diff=(next-today)/(1000*60*60*24);
-      if(diff<0) return {key:'over',label:'متأخر',cls:'pill-bad'};
-      const sameMonth = today.getFullYear()===next.getFullYear() && today.getMonth()===next.getMonth();
-      if(sameMonth) return {key:'due',label:'مستحق هذا الشهر',cls:'pill-warn'};
-      if(diff<=30) return {key:'soon',label:'خلال 30 يومًا',cls:'pill-warn'};
-      return {key:'ok',label:'OK',cls:'pill-ok'};
+      const today    = new Date();
+      const nextDate = new Date(nextISO + 'T00:00:00');
+      const grace    = new Date(nextDate); grace.setMonth(grace.getMonth()+1);
+      if(today > grace) return {key:'over',label:'متأخر',cls:'pill-bad'};
+
+      const diffDays = (nextDate - today)/86400000;
+      const sameMonth = (today.getFullYear()===nextDate.getFullYear() && today.getMonth()===nextDate.getMonth());
+      if(sameMonth)   return {key:'due', label:'مستحق هذا الشهر', cls:'pill-warn'};
+      if(diffDays<=30) return {key:'soon',label:'خلال 30 يومًا',  cls:'pill-warn'};
+      return {key:'ok', label:'OK', cls:'pill-ok'};
     }
 
     // ===== Auth Guard =====
@@ -439,7 +432,7 @@
         tech: $('#a_tech').value.trim(),
         pm_date: $('#a_pm').value || '',
       };
-      data.next_date = data.pm_date ? calcNext(new Date(data.pm_date)) : '';
+      data.next_date = data.pm_date ? toISO(addMonths(new Date(data.pm_date),6)) : '';
       try{
         await setDoc(doc(db,'assets', safeId(control)), {...data, updatedAt: serverTimestamp()});
         notify('تم الحفظ ✅','ok');
@@ -476,7 +469,7 @@
         try{
           const id = bq.dataset.quickpm;
           const today = toISO(new Date());
-          const next  = calcNext(new Date(today));
+          const next  = toISO(addMonths(new Date(today),6));
           await updateDoc(doc(db,'assets', id), { pm_date: today, next_date: next, updatedAt: serverTimestamp() });
           notify('تم تسجيل الصيانة اليوم ✅','ok');
           await loadData();
@@ -508,7 +501,7 @@
         tech: $('#m_tech').value.trim(),
         pm_date: $('#m_pm').value || '',
       };
-      data.next_date = data.pm_date ? calcNext(new Date(data.pm_date)) : '';
+      data.next_date = data.pm_date ? toISO(addMonths(new Date(data.pm_date),6)) : '';
       const id = editingId || safeId(control);
       try{
         await setDoc(doc(db,'assets', id), {...data, updatedAt: serverTimestamp()});
