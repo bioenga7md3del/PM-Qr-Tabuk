@@ -6,7 +6,6 @@
 <title>PM-QR – إدارة المستخدمين</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-  /* خلفية عامة داكنة */
   body{background:#0b1220;color:#e5e7eb}
   .card{background:#111827;border:1px solid #1f2937;border-radius:16px;box-shadow:0 12px 36px rgba(0,0,0,.35)}
   .notice{position:sticky;top:0;z-index:40;text-align:center;font-weight:800}
@@ -20,14 +19,11 @@
   .role-tech{background:#bbf7d0;color:#14532d}
   .role-viewer{background:#e5e7eb;color:#111827}
 
-  /* نافذة تعديل بخلفية فاتحة ونص داكن */
   .modal{background:#ffffff !important;color:#0f172a !important}
   .modal input,.modal select{
     background:#f8fafc !important;color:#0f172a !important;border:1px solid #cbd5e1 !important;
     border-radius:10px;padding:10px;
   }
-
-  /* مكوّن اختيار (Picker) مع بحث + قائمة + مختارة (Chips) */
   .pick-col{border:1px solid #cbd5e1;border-radius:12px;background:#fff}
   .pick-list{max-height:220px;overflow:auto}
   .pick-item{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.45rem .6rem;border-bottom:1px dashed #e5e7eb;cursor:pointer}
@@ -39,7 +35,6 @@
 <body class="min-h-screen">
   <div id="notice" class="notice n-info w-full py-2">جارِ التحقق من الصلاحيات…</div>
 
-  <!-- شريط علوي -->
   <header class="sticky top-0 z-30 bg-slate-900/80 backdrop-blur border-b border-slate-800">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="font-extrabold text-xl flex items-center gap-2">
@@ -52,7 +47,89 @@
   </header>
 
   <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
-    <!-- قائمة المستخدمين فقط -->
+
+    <!-- القسم الجديد: إضافة مستخدم لجدول users -->
+    <section class="card p-4">
+      <h2 class="text-lg font-extrabold mb-3">➕ إضافة مستخدم إلى قاعدة البيانات (users)</h2>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
+        <!-- وضع جلب من Authentication -->
+        <div class="lg:col-span-3">
+          <label class="block mb-1 text-slate-300">UID أو Email (من Authentication)</label>
+          <input id="fetch_key" placeholder="uid أو user@domain.com" class="w-full px-3 py-2 rounded bg-slate-950 border border-slate-800"/>
+        </div>
+        <div class="lg:col-span-2">
+          <button id="btnFetchAuth" class="w-full px-3 py-2 rounded bg-indigo-500 text-white font-bold">جلب من Authentication</button>
+        </div>
+        <div class="lg:col-span-7 text-sm text-slate-400">
+          <div>للاستخدام مع **Cloud Function** اسمها <code>adminGetAuthUser</code> (Callable) ترجع { uid, email, displayName }.</div>
+          <div>لو الفنكشن مش متاحة، استخدم الإدخال اليدوي بالأسفل.</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4">
+        <div class="md:col-span-1">
+          <label class="block mb-1 text-slate-300">UID (مطلوب)</label>
+          <input id="nu_uid" placeholder="مثال: H8Xs...A1" class="w-full px-3 py-2 rounded bg-slate-950 border border-slate-800"/>
+        </div>
+        <div class="md:col-span-1">
+          <label class="block mb-1 text-slate-300">Email</label>
+          <input id="nu_email" type="email" placeholder="user@domain.com" class="w-full px-3 py-2 rounded bg-slate-950 border border-slate-800"/>
+        </div>
+        <div class="md:col-span-1">
+          <label class="block mb-1 text-slate-300">الاسم</label>
+          <input id="nu_name" placeholder="اسم المستخدم" class="w-full px-3 py-2 rounded bg-slate-950 border border-slate-800"/>
+        </div>
+        <div class="md:col-span-1">
+          <label class="block mb-1 text-slate-300">الدور</label>
+          <select id="nu_role" class="w-full px-3 py-2 rounded bg-slate-950 border border-slate-800">
+            <option value="viewer">viewer</option>
+            <option value="tech">tech</option>
+            <option value="engineer">engineer</option>
+            <option value="admin">admin</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+        <!-- مواقع -->
+        <div>
+          <div class="mb-2 font-bold">المواقع المسموح بها</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="pick-col">
+              <input id="nu_sitesSearch" class="w-full border-0 border-b border-slate-200 rounded-none px-3 py-2" placeholder="ابحث عن موقع…"/>
+              <div id="nu_sitesList" class="pick-list"></div>
+            </div>
+            <div class="pick-col p-2">
+              <div class="text-sm text-slate-600 mb-1">المختارة:</div>
+              <div id="nu_sitesChosen" class="min-h-[44px]"></div>
+              <input id="nu_sitesExtra" class="mt-2 w-full px-3 py-2 border border-slate-200 rounded-lg" placeholder="إضافات يدوية (بفواصل)"/>
+            </div>
+          </div>
+        </div>
+        <!-- أقسام -->
+        <div>
+          <div class="mb-2 font-bold">الأقسام المسموح بها</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="pick-col">
+              <input id="nu_deptsSearch" class="w-full border-0 border-b border-slate-200 rounded-none px-3 py-2" placeholder="ابحث عن قسم…"/>
+              <div id="nu_deptsList" class="pick-list"></div>
+            </div>
+            <div class="pick-col p-2">
+              <div class="text-sm text-slate-600 mb-1">المختارة:</div>
+              <div id="nu_deptsChosen" class="min-h-[44px]"></div>
+              <input id="nu_deptsExtra" class="mt-2 w-full px-3 py-2 border border-slate-200 rounded-lg" placeholder="إضافات يدوية (بفواصل)"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="nu_save" class="px-4 py-2 rounded bg-sky-600 text-white font-bold hover:opacity-90">حفظ في users</button>
+      </div>
+    </section>
+
+    <!-- قائمة المستخدمين -->
     <section class="card p-4">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg font-extrabold">👥 جميع المستخدمين</h2>
@@ -61,7 +138,6 @@
           <button id="btnRefresh" class="px-3 py-2 rounded bg-slate-700 hover:opacity-90">تحديث</button>
         </div>
       </div>
-
       <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
           <thead class="bg-slate-800 text-slate-200">
@@ -87,11 +163,7 @@
         <h3 class="text-lg font-bold">تعديل مستخدم</h3>
         <button id="closeEdit" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">✕</button>
       </div>
-
-      <!-- UID مخفي (غير قابل للتعديل) -->
       <input id="e_uid" type="hidden"/>
-
-      <!-- بيانات أساسية -->
       <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
         <input id="e_name"  placeholder="الاسم"  class="md:col-span-2"/>
         <input id="e_email" placeholder="البريد" class="md:col-span-2"/>
@@ -102,12 +174,9 @@
           <option value="admin">admin</option>
         </select>
       </div>
-
-      <!-- Pickers -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-        <!-- مواقع -->
         <div>
-          <div class="mb-2 font-bold">المواقع المسموح بها</div>
+          <div class="mb-2 font-bold">المواقع</div>
           <div class="grid grid-cols-2 gap-3">
             <div class="pick-col">
               <input id="e_sitesSearch" class="w-full border-0 border-b border-slate-200 rounded-none px-3 py-2" placeholder="ابحث عن موقع…"/>
@@ -120,9 +189,8 @@
             </div>
           </div>
         </div>
-        <!-- أقسام -->
         <div>
-          <div class="mb-2 font-bold">الأقسام المسموح بها</div>
+          <div class="mb-2 font-bold">الأقسام</div>
           <div class="grid grid-cols-2 gap-3">
             <div class="pick-col">
               <input id="e_deptsSearch" class="w-full border-0 border-b border-slate-200 rounded-none px-3 py-2" placeholder="ابحث عن قسم…"/>
@@ -136,18 +204,19 @@
           </div>
         </div>
       </div>
-
       <div class="flex justify-end gap-2 mt-4">
         <button id="saveEdit" class="px-4 py-2 rounded bg-sky-600 text-white font-bold hover:opacity-90">حفظ</button>
       </div>
     </div>
   </div>
 
-<!-- ===== SCRIPTS ===== -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-import { getFirestore, collection, getDocs, setDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-functions.js";
+import {
+  getFirestore, collection, getDocs, setDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDoc, query, orderBy
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
 /* Firebase */
 const firebaseConfig = {
@@ -161,6 +230,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
+const functions = getFunctions(app);
 
 /* Helpers */
 const $ = s => document.querySelector(s);
@@ -170,7 +240,7 @@ const notice=(m,t='info')=>{
   n.className='notice ' + (t==='ok'?'n-ok': t==='error'?'n-err':'n-info');
 };
 
-/* ============ AUTH GUARD (admin only) ============ */
+/* AUTH GUARD (admin only) */
 let currentRole = null;
 onAuthStateChanged(auth, async (user)=>{
   if(!user){ location.href='login.html'; return; }
@@ -188,7 +258,7 @@ onAuthStateChanged(auth, async (user)=>{
   await loadUsers();
 });
 
-/* ============ Lookups (sites/departments) ============ */
+/* Lookups من الأصول لبناء قوائم المواقع/الأقسام */
 let ALL_SITES=[], ALL_DEPTS=[];
 async function loadAssetsLookups(){
   const qs = await getDocs(query(collection(db,'assets'), orderBy('site')));
@@ -199,9 +269,11 @@ async function loadAssetsLookups(){
     if(x.department) d.add(x.department);
   });
   ALL_SITES=[...s].sort(); ALL_DEPTS=[...d].sort();
+  buildPicker('nu_sites', ALL_SITES, []);
+  buildPicker('nu_depts', ALL_DEPTS, []);
 }
 
-/* ============ Picker component ============ */
+/* Picker component (للمواقع/الأقسام) */
 const pickers = {};
 function buildPicker(key, items, preselected=[]){
   const inputSearch = $(`#${key}Search`);
@@ -232,11 +304,60 @@ function buildPicker(key, items, preselected=[]){
   }
   inputSearch.oninput=renderList;
   renderList(); renderChosen();
-
   pickers[key]={ get:()=>Array.from(chosen), set:(arr)=>{ chosen.clear(); (arr||[]).forEach(v=>chosen.add(v)); renderChosen(); } };
 }
 
-/* ============ Users table ============ */
+/* إضافة مستخدم جديد لمجموعة users */
+document.getElementById('btnFetchAuth').addEventListener('click', async ()=>{
+  const key = $('#fetch_key').value.trim();
+  if(!key){ notice('اكتب UID أو Email أولاً','error'); return; }
+  try{
+    // نستدعي Callable Function لو موجودة
+    const call = httpsCallable(functions, 'adminGetAuthUser');
+    const res = await call({ key }); // { uid, email, displayName }
+    const u = res.data || {};
+    if(!u.uid){ notice('لم يتم العثور على مستخدم بهذا المفتاح في Authentication','error'); return; }
+    // عبّي الحقول
+    $('#nu_uid').value   = u.uid || '';
+    $('#nu_email').value = u.email || '';
+    $('#nu_name').value  = u.displayName || '';
+    notice('تم جلب بيانات المستخدم من Authentication ✅','ok');
+  }catch(e){
+    // لو الفنكشن مش متاحة أو رفضت
+    notice('تعذر الجلب من Authentication. يمكنك تعبئة الحقول يدويًا.','error');
+    console.error(e);
+  }
+});
+
+document.getElementById('nu_save').addEventListener('click', async ()=>{
+  const uid   = $('#nu_uid').value.trim();
+  const email = $('#nu_email').value.trim();
+  const name  = $('#nu_name').value.trim();
+  const role  = $('#nu_role').value;
+  if(!uid){ notice('UID مطلوب لإنشاء المستند','error'); return; }
+
+  let sites = pickers['nu_sites']?.get() || [];
+  let depts = pickers['nu_depts']?.get() || [];
+  const sExtra = ($('#nu_sitesExtra').value||'').split(',').map(x=>x.trim()).filter(Boolean);
+  const dExtra = ($('#nu_deptsExtra').value||'').split(',').map(x=>x.trim()).filter(Boolean);
+  sites = Array.from(new Set([...sites, ...sExtra]));
+  depts = Array.from(new Set([...depts, ...dExtra]));
+
+  try{
+    await setDoc(doc(db,'users', uid), {
+      name, email, role, sites, departments: depts, updatedAt: serverTimestamp()
+    }, { merge: true });
+    notice('تمت إضافة/تحديث مستند المستخدم في users ✅','ok');
+    // نظّف المدخلات
+    // $('#nu_uid').value=''; $('#nu_email').value=''; $('#nu_name').value=''; $('#nu_role').value='viewer';
+    $('#nu_sitesExtra').value=''; $('#nu_deptsExtra').value='';
+    await loadUsers();
+  }catch(e){
+    notice('فشل حفظ مستند المستخدم: '+e.message,'error');
+  }
+});
+
+/* جدول المستخدمين (عرض/تعديل/حذف) */
 let users=[], filtered=[];
 async function loadUsers(){
   try{
@@ -280,70 +401,62 @@ function renderTable(){
 document.getElementById('q').addEventListener('input', renderTable);
 document.getElementById('btnRefresh').addEventListener('click', loadUsers);
 
-/* ============ Edit modal open ============ */
+/* تعديل */
 const editModal = $('#editModal');
 const openEdit = ()=>{ editModal.classList.remove('hidden'); editModal.classList.add('flex'); };
 const closeEdit = ()=>{ editModal.classList.add('hidden'); editModal.classList.remove('flex'); };
 document.getElementById('closeEdit').onclick = closeEdit;
 
-let editingUID=null;
 document.addEventListener('click', (e)=>{
   const b = e.target.closest('button[data-edit]');
   if(!b) return;
   const uid=b.dataset.edit;
   const u = users.find(x=> x.id===uid);
   if(!u) return;
-
   $('#e_uid').value   = uid;
   $('#e_name').value  = u.name || '';
   $('#e_email').value = u.email||'';
   $('#e_role').value  = u.role || 'viewer';
-
-  // ابني Pickers على حسب lookups مع المختارة
   buildPicker('e_sites', ALL_SITES, u.sites||[]);
   buildPicker('e_depts', ALL_DEPTS, u.departments||[]);
   $('#e_sitesExtra').value=''; $('#e_deptsExtra').value='';
-
-  editingUID=uid; openEdit();
+  openEdit();
 });
 
-/* ============ Save edit ============ */
 document.getElementById('saveEdit').addEventListener('click', async ()=>{
-  if(!editingUID) return;
+  const uid = $('#e_uid').value;
   const name  = $('#e_name').value.trim();
   const email = $('#e_email').value.trim();
   const role  = $('#e_role').value;
-
-  let sites = pickers['e_sites'].get();
-  let depts = pickers['e_depts'].get();
-  const sitesExtra = ($('#e_sitesExtra').value||'').split(',').map(s=>s.trim()).filter(Boolean);
-  const deptsExtra = ($('#e_deptsExtra').value||'').split(',').map(s=>s.trim()).filter(Boolean);
-  sites = Array.from(new Set([...sites, ...sitesExtra]));
-  depts = Array.from(new Set([...depts, ...deptsExtra]));
-
-  if(!email){ notice('أدخل البريد','error'); return; }
-
+  let sites = pickers['e_sites']?.get() || [];
+  let depts = pickers['e_depts']?.get() || [];
+  const sExtra = ($('#e_sitesExtra').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const dExtra = ($('#e_deptsExtra').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  sites = Array.from(new Set([...sites, ...sExtra]));
+  depts = Array.from(new Set([...depts, ...dExtra]));
   try{
-    await updateDoc(doc(db,'users', editingUID), {
-      name, email, role, sites, departments: depts, updatedAt: serverTimestamp()
-    });
+    await updateDoc(doc(db,'users', uid), { name, email, role, sites, departments: depts, updatedAt: serverTimestamp() });
     notice('تم التحديث ✅','ok');
     closeEdit(); await loadUsers();
   }catch(e){ notice('فشل التحديث: '+e.message,'error'); }
 });
 
-/* ============ Delete user doc (not auth) ============ */
+/* حذف مستند المستخدم من Firestore (ليس من Authentication) */
 document.addEventListener('click', async (e)=>{
   const b = e.target.closest('button[data-del]');
   if(!b) return;
   const uid=b.dataset.del;
-  if(!confirm('سيتم حذف مستند المستخدم من Firestore (لن يُحذف حساب Authentication). متابعة؟')) return;
+  if(!confirm('سيتم حذف مستند المستخدم من Firestore فقط. متابعة؟')) return;
   try{
     await deleteDoc(doc(db,'users', uid));
     notice('تم حذف المستند ✅','ok');
     await loadUsers();
   }catch(err){ notice('فشل الحذف: '+err.message,'error'); }
 });
+
+/* أخطاء عامة */
+window.addEventListener('error', e=> notice('خطأ: '+(e.error?.message||e.message),'error'));
+window.addEventListener('unhandledrejection', e=> notice('خطأ: '+(e.reason?.message||e.reason),'error'));
 </script>
 </body>
 </html>
