@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>PM-QR – إدارة المستخدمين</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{background:#0b1220;color:#e5e7eb}
+  .card{background:#111827;border:1px solid #1f2937;border-radius:16px;box-shadow:0 12px 36px rgba(0,0,0,.35)}
+  .notice{position:sticky;top:0;z-index:40;text-align:center;font-weight:800}
+  .n-ok{background:rgba(16,185,129,.15);border-bottom:1px solid rgba(16,185,129,.5);color:#a7f3d0}
+  .n-err{background:rgba(239,68,68,.15);border-bottom:1px solid rgba(239,68,68,.5);color:#fecaca}
+  .n-info{background:rgba(59,130,246,.15);border-bottom:1px solid rgba(59,130,246,.5);color:#bfdbfe}
+  input,select,textarea{background:#0b1220;border:1px solid #374151;border-radius:12px;padding:10px;color:#fff}
+  table td,table th{white-space:nowrap}
+  @media (max-width:768px){ table{font-size:.9rem} }
+</style>
+</head>
+<body class="min-h-screen">
+  <div id="notice" class="notice n-info w-full py-2">جارِ التحقق من الصلاحيات…</div>
+
+  <header class="sticky top-0 z-30 bg-slate-900/80 backdrop-blur border-b border-slate-800">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="font-extrabold text-xl">إدارة المستخدمين</div>
+      <div class="flex items-center gap-2">
+        <a href="index.html" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700">← الرجوع للوحة</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <!-- إضافة مستخدم -->
+    <section class="card p-4">
+      <h2 class="text-lg font-extrabold mb-3">➕ إضافة مستخدم (إنشاء/تحديث مستند users/{uid})</h2>
+      <p class="text-slate-300 text-sm mb-3">
+        ملاحظة: لازم يكون المستخدم مسجّل بالفعل في Authentication. انسخ <b>UID</b> من Firebase Console → Authentication والصقه هنا.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <input id="u_uid"  placeholder="UID" class="md:col-span-2"/>
+        <input id="u_name" placeholder="الاسم"/>
+        <input id="u_email" type="email" placeholder="البريد"/>
+        <select id="u_role">
+          <option value="viewer">viewer</option>
+          <option value="tech">tech</option>
+          <option value="engineer">engineer</option>
+          <option value="admin">admin</option>
+        </select>
+        <input id="u_sites" placeholder="المواقع (مفصولة بفواصل)"/>
+        <input id="u_depts" placeholder="الأقسام (مفصولة بفواصل)"/>
+      </div>
+      <div class="flex justify-end mt-3">
+        <button id="btnSaveUser" class="px-4 py-2 rounded-lg bg-sky-600 font-bold hover:opacity-90">حفظ المستخدم</button>
+      </div>
+    </section>
+
+    <!-- قائمة المستخدمين -->
+    <section class="card p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-extrabold">👥 جميع المستخدمين</h2>
+        <div class="flex items-center gap-2">
+          <input id="q" placeholder="بحث بالاسم أو البريد…" class="w-64"/>
+          <button id="btnRefresh" class="px-3 py-2 rounded bg-slate-700">تحديث</button>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-800 text-slate-200">
+            <tr>
+              <th class="p-3 text-right">الاسم</th>
+              <th class="p-3 text-right">البريد</th>
+              <th class="p-3 text-right">الدور</th>
+              <th class="p-3 text-right">المواقع</th>
+              <th class="p-3 text-right">الأقسام</th>
+              <th class="p-3 text-right">أدوات</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- نافذة تعديل -->
+  <div id="editModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center">
+    <div class="bg-white text-black rounded-xl p-5 w-full max-w-2xl">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-bold">تعديل مستخدم</h3>
+        <button id="closeEdit" class="px-3 py-1 bg-gray-200 rounded">✕</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <input id="e_uid"  placeholder="UID" class="md:col-span-2" disabled/>
+        <input id="e_name" placeholder="الاسم"/>
+        <input id="e_email" placeholder="البريد"/>
+        <select id="e_role">
+          <option value="viewer">viewer</option>
+          <option value="tech">tech</option>
+          <option value="engineer">engineer</option>
+          <option value="admin">admin</option>
+        </select>
+        <input id="e_sites" placeholder="المواقع (بفواصل)"/>
+        <input id="e_depts" placeholder="الأقسام (بفواصل)"/>
+      </div>
+      <div class="flex justify-end gap-2 mt-3">
+        <button id="saveEdit" class="px-4 py-2 rounded bg-sky-600 text-white font-bold">حفظ</button>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+import { getFirestore, collection, getDocs, setDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
+  authDomain: "pmqrtabuk.firebaseapp.com",
+  projectId: "pmqrtabuk",
+  storageBucket: "pmqrtabuk.firebasestorage.app",
+  messagingSenderId: "305570616285",
+  appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const $ = s => document.querySelector(s);
+const notice=(m,t='info')=>{
+  const n=$('#notice');
+  n.textContent=m;
+  n.className='notice ' + (t==='ok'?'n-ok': t==='error'?'n-err':'n-info');
+};
+
+let currentRole = null;
+
+// حراسة: يسمح بالدخول للـ admin فقط
+onAuthStateChanged(auth, async (user)=>{
+  if(!user){ location.href='login.html'; return; }
+  try{
+    const snap = await getDoc(doc(db,'users', user.uid));
+    currentRole = snap.exists()? (snap.data().role || 'viewer') : 'viewer';
+  }catch{ currentRole = 'viewer'; }
+
+  if(currentRole!=='admin'){
+    notice('هذه الصفحة للمشرف فقط. سيتم تحويلك للوحة…','error');
+    setTimeout(()=> location.href='index.html', 1200);
+    return;
+  }
+
+  notice('تم التحقق من الصلاحيات ✅','ok');
+  loadUsers();
+});
+
+async function loadUsers(){
+  try{
+    notice('جارِ تحميل المستخدمين…');
+    const qs = await getDocs(query(collection(db,'users'), orderBy('email')));
+    users = qs.docs.map(d=> ({ id: d.id, ...d.data() }));
+    filtered = users.slice();
+    renderTable();
+    notice('تم التحميل ✅','ok');
+  }catch(e){
+    notice('فشل التحميل: ' + e.message, 'error');
+  }
+}
+
+let users = [];
+let filtered = [];
+
+function renderTable(){
+  const q = ($('#q').value||'').toLowerCase().trim();
+  filtered = users.filter(u=>{
+    return !q || (String(u.name||'').toLowerCase().includes(q) || String(u.email||'').toLowerCase().includes(q));
+  });
+
+  const tb = $('#tbody'); tb.innerHTML='';
+  for(const u of filtered){
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-slate-800';
+    const sites = Array.isArray(u.sites)? u.sites.join(', ') : '';
+    const depts = Array.isArray(u.departments)? u.departments.join(', ') : '';
+    tr.innerHTML = `
+      <td class="p-3">${u.name||'—'}</td>
+      <td class="p-3">${u.email||'—'}</td>
+      <td class="p-3 font-bold">${u.role||'viewer'}</td>
+      <td class="p-3">${sites||'—'}</td>
+      <td class="p-3">${depts||'—'}</td>
+      <td class="p-3">
+        <div class="flex gap-2">
+          <button class="px-2 py-1 rounded bg-sky-500 text-sky-950 font-bold" data-edit="${u.id}">تعديل</button>
+          <button class="px-2 py-1 rounded bg-red-600 text-white font-bold" data-del="${u.id}">حذف مستند</button>
+        </div>
+      </td>
+    `;
+    tb.appendChild(tr);
+  }
+}
+
+document.getElementById('q').addEventListener('input', renderTable);
+document.getElementById('btnRefresh').addEventListener('click', loadUsers);
+
+// حفظ مستخدم جديد/تحديث
+document.getElementById('btnSaveUser').addEventListener('click', async ()=>{
+  const uid  = $('#u_uid').value.trim();
+  const name = $('#u_name').value.trim();
+  const email= $('#u_email').value.trim();
+  const role = $('#u_role').value;
+  const sites= ($('#u_sites').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const depts= ($('#u_depts').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+
+  if(!uid){ notice('أدخل UID','error'); return; }
+  if(!email){ notice('أدخل البريد الإلكتروني','error'); return; }
+
+  try{
+    await setDoc(doc(db,'users', uid), {
+      name: name || '',
+      email,
+      role: role || 'viewer',
+      sites,
+      departments: depts,
+      updatedAt: serverTimestamp(),
+      createdAt: serverTimestamp()
+    }, { merge: true });
+    notice('تم الحفظ ✅','ok');
+    // نظّف الحقول
+    ['u_uid','u_name','u_email','u_sites','u_depts'].forEach(id=> $('#'+id).value='');
+    $('#u_role').value='viewer';
+    await loadUsers();
+  }catch(e){
+    notice('فشل الحفظ: ' + e.message, 'error');
+  }
+});
+
+// فتح نافذة تعديل
+document.addEventListener('click', (e)=>{
+  const b = e.target.closest('button[data-edit]');
+  if(!b) return;
+  const uid = b.dataset.edit;
+  const u = users.find(x=> x.id===uid);
+  if(!u) return;
+  $('#e_uid').value   = uid;
+  $('#e_name').value  = u.name || '';
+  $('#e_email').value = u.email || '';
+  $('#e_role').value  = u.role  || 'viewer';
+  $('#e_sites').value = (u.sites||[]).join(', ');
+  $('#e_depts').value = (u.departments||[]).join(', ');
+  openEdit();
+});
+
+document.getElementById('saveEdit').addEventListener('click', async ()=>{
+  const uid   = $('#e_uid').value.trim();
+  const name  = $('#e_name').value.trim();
+  const email = $('#e_email').value.trim();
+  const role  = $('#e_role').value;
+  const sites = ($('#e_sites').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const depts = ($('#e_depts').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  if(!uid){ notice('لا يوجد UID','error'); return; }
+  if(!email){ notice('أدخل البريد','error'); return; }
+  try{
+    await updateDoc(doc(db,'users', uid), {
+      name, email, role, sites, departments: depts, updatedAt: serverTimestamp()
+    });
+    notice('تم التحديث ✅','ok');
+    closeEdit(); await loadUsers();
+  }catch(e){
+    notice('فشل التحديث: '+ e.message, 'error');
+  }
+});
+
+document.addEventListener('click', async (e)=>{
+  const b = e.target.closest('button[data-del]');
+  if(!b) return;
+  const uid = b.dataset.del;
+  if(!confirm('سيتم حذف مستند المستخدم من Firestore (لن يحذف حساب Authentication). متابعة؟')) return;
+  try{
+    await deleteDoc(doc(db,'users', uid));
+    notice('تم حذف المستند ✅','ok');
+    await loadUsers();
+  }catch(err){
+    notice('فشل الحذف: ' + err.message, 'error');
+  }
+});
+
+// تحكم المودال
+const editModal = document.getElementById('editModal');
+const openEdit = ()=>{ editModal.classList.remove('hidden'); editModal.classList.add('flex'); };
+const closeEdit = ()=>{ editModal.classList.add('hidden'); editModal.classList.remove('flex'); };
+document.getElementById('closeEdit').onclick = closeEdit;
+
+// أخطاء عامة
+window.addEventListener('error', e=> notice('خطأ: '+(e.error?.message||e.message),'error'));
+window.addEventListener('unhandledrejection', e=> notice('خطأ: '+(e.reason?.message||e.reason),'error'));
+</script>
+</body>
+</html>
