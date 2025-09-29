@@ -12,13 +12,13 @@
     .pill-bad{ background:#fee2e2; color:#991b1b }
     @media print { .no-print{ display:none !important } }
 
-    /* تلوين صفوف الجدول حسب الحالة (ساري/منتهي) */
-    .row-active { background:#ecfdf5 }   /* ساري (PM → Next+1M) */
-    .row-over   { background:#fee2e2 }   /* منتهي (بعد Next+1M) */
+    /* تلوين الصفوف حسب الحالة (ساري حتى Next+1M / منتهي بعد ذلك) */
+    .row-active { background:#ecfdf5 }
+    .row-over   { background:#fee2e2 }
     .row-hover:hover { filter:brightness(.98) }
 
-    /* إجبار لون نص الجدول داكن وواضح */
-    #tbody tr, #tbody tr.row-active, #tbody tr.row-over { color:#0f172a; } /* slate-900 */
+    /* نص الجدول داكن وواضح */
+    #tbody tr, #tbody tr.row-active, #tbody tr.row-over { color:#0f172a; }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
@@ -33,9 +33,10 @@
       <div class="flex items-center gap-3">
         <div class="text-xl font-extrabold">لوحة PM-QR</div>
         <span id="userEmail" class="hidden md:inline text-slate-300 text-sm"></span>
+        <span id="userRole" class="hidden md:inline text-slate-400 text-xs"></span>
       </div>
       <div class="flex items-center gap-2">
-        <a href="import.html" class="px-3 py-2 rounded-lg bg-emerald-500 text-emerald-950 font-bold hover:opacity-90">📂 رفع ملف إكسل</a>
+        <a href="import.html" class="px-3 py-2 rounded-lg bg-emerald-500 text-emerald-950 font-bold hover:opacity-90" id="linkImport">📂 رفع ملف إكسل</a>
         <button id="openAddBtn" class="px-3 py-2 rounded-lg bg-sky-500 text-sky-950 font-bold hover:opacity-90">➕ إضافة جهاز</button>
         <button id="signOutBtn" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700">تسجيل الخروج</button>
       </div>
@@ -94,8 +95,12 @@
         <span class="inline-flex items-center gap-2"><i class="inline-block w-4 h-4 rounded-sm" style="background:#fee2e2"></i> منتهي (بعد Next + شهر)</span>
       </div>
       <div class="flex items-center gap-2">
-        <button id="btnDeptQR" class="px-3 py-2 rounded bg-yellow-500 text-yellow-950 font-bold">🔳 طباعة QR للقسم الحالي</button>
-        <button id="btnBulkDelete" class="px-3 py-2 rounded bg-red-600 text-white font-bold">🗑️ مسح الأجهزة المحددة</button>
+        <button id="btnDeptQR" class="px-3 py-2 rounded bg-yellow-500 text-yellow-950 font-bold">
+          🔳 طباعة QR للقسم الحالي
+        </button>
+        <button id="btnBulkDelete" class="px-3 py-2 rounded bg-red-600 text-white font-bold">
+          🗑️ مسح الأجهزة المحددة
+        </button>
       </div>
     </div>
 
@@ -181,7 +186,7 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
     import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js';
     import {
-      getFirestore, collection, getDocs, query, orderBy, setDoc, doc, serverTimestamp, updateDoc, deleteDoc
+      getFirestore, collection, getDocs, query, orderBy, setDoc, doc, serverTimestamp, updateDoc, deleteDoc, getDoc
     } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 
     const firebaseConfig = {
@@ -198,60 +203,85 @@
 
     // ===== Utils =====
     const $ = s => document.querySelector(s);
-    const notify=(msg,type='info')=>{
+    const notice=(m,t='info')=>{
       const n=$('#notice');
-      n.textContent=msg;
+      n.textContent=m;
       n.className='no-print text-center py-2 font-bold '+
-        (type==='ok'?'bg-emerald-900/40 border-b border-emerald-700':
-         type==='error'?'bg-red-900/40 border-b border-red-700':
-                        'bg-sky-900/40 border-b border-sky-700');
+        (t==='ok'?'bg-emerald-900/40 border-b border-emerald-700':
+         t==='error'?'bg-red-900/40 border-b border-red-700':
+                      'bg-sky-900/40 border-b border-sky-700');
     };
     const toISO=d=>new Date(d).toISOString().slice(0,10);
     const addMonths=(d,m)=>{const x=new Date(d); x.setMonth(x.getMonth()+m); return x};
-    const calcNext=pm=>pm? toISO(addMonths(pm,6)):'';
     const safeId=s=>String(s||'').trim().replace(/[\/?#\s]+/g,'-');
 
-    // تلوين الصفوف بمنطق Next PM + شهر
+    // منطق التلوين: ساري حتى (Next + شهر)، منتهي بعد ذلك
     function rowState(pm, next){
       if(!pm || !next) return 'none';
       const today    = new Date();
       const pmDate   = new Date(pm   + 'T00:00:00');
       const nextDate = new Date(next + 'T00:00:00');
       const grace    = new Date(nextDate); grace.setMonth(grace.getMonth()+1);
-      if(today > grace) return 'over';                     // منتهي
-      if(today >= pmDate && today <= grace) return 'active';// ساري
+      if(today > grace) return 'over';
+      if(today >= pmDate && today <= grace) return 'active';
       return 'none';
     }
-
-    // عمود الحالة: متأخر فقط بعد مهلة الشهر
+    // عمود الحالة
     function statusOf(nextISO){
       if(!nextISO) return {key:'over',label:'—',cls:'pill-bad'};
       const today    = new Date();
       const nextDate = new Date(nextISO + 'T00:00:00');
       const grace    = new Date(nextDate); grace.setMonth(grace.getMonth()+1);
       if(today > grace) return {key:'over',label:'متأخر',cls:'pill-bad'};
-
       const diffDays = (nextDate - today)/86400000;
       const sameMonth = (today.getFullYear()===nextDate.getFullYear() && today.getMonth()===nextDate.getMonth());
-      if(sameMonth)   return {key:'due', label:'مستحق هذا الشهر', cls:'pill-warn'};
+      if(sameMonth)    return {key:'due', label:'مستحق هذا الشهر', cls:'pill-warn'};
       if(diffDays<=30) return {key:'soon',label:'خلال 30 يومًا',  cls:'pill-warn'};
-      return {key:'ok', label:'OK', cls:'pill-ok'};
+      return {key:'ok',  label:'OK', cls:'pill-ok'};
     }
 
+    // ===== Roles =====
+    let currentRole = localStorage.getItem('pmqr_role') || null;
+    function applyRoleUI(role){
+      currentRole = role;
+      $('#userRole').textContent = role ? `(${role})` : '(viewer)';
+      const btnOpenAdd = $('#openAddBtn');
+      const btnBulkDel = $('#btnBulkDelete');
+      const linkImport = $('#linkImport');
+
+      const canCreate = role==='admin' || role==='engineer';
+      const canBulk   = role==='admin';
+      const canImport = role==='admin' || role==='engineer';
+
+      if(btnOpenAdd) btnOpenAdd.style.display = canCreate ? '' : 'none';
+      if(btnBulkDel) btnBulkDel.style.display = canBulk   ? '' : 'none';
+      if(linkImport) linkImport.style.display = canImport ? '' : 'none';
+    }
+    const canWriteFull = ()=> currentRole==='admin' || currentRole==='engineer';
+    const canTechOnly  = ()=> currentRole==='tech';
+
     // ===== Auth Guard =====
-    onAuthStateChanged(auth, user=>{
+    onAuthStateChanged(auth, async user=>{
       if(!user){ location.href='login.html'; return; }
       $('#userEmail').textContent = user.email || '';
-      notify('تم تسجيل الدخول ✅','ok');
+      notice('تم تسجيل الدخول ✅','ok');
+
+      // تأكيد الدور من Firestore (يغطي حالة التبديل أثناء الجلسة)
+      try{
+        const snap = await getDoc(doc(db,'users', user.uid));
+        const role = snap.exists() ? (snap.data().role || 'viewer') : (currentRole||'viewer');
+        localStorage.setItem('pmqr_role', role);
+        applyRoleUI(role);
+      }catch{
+        applyRoleUI(currentRole||'viewer');
+      }
+
       loadData();
     });
-    $('#signOutBtn').onclick = ()=> signOut(auth).then(()=> location.href='login.html');
+    $('#signOutBtn').onclick = ()=> signOut(auth).then(()=>{ localStorage.removeItem('pmqr_role'); location.href='login.html'; });
 
     // ===== State =====
-    let all = [];
-    let filtered = [];
-    let page = 1; const pageSize = 20;
-    let editingId = null;
+    let all=[], filtered=[]; let page=1; const pageSize=20; let editingId=null;
 
     function fillFilterOptions(){
       const sites = Array.from(new Set(all.map(x=>x.site).filter(Boolean))).sort();
@@ -276,9 +306,7 @@
         const matchT = !fstatus || st===fstatus;
         return matchQ && matchS && matchD && matchT;
       });
-      page = 1;
-      renderTable();
-      renderKPI();
+      page=1; renderTable(); renderKPI();
     }
 
     function renderKPI(){
@@ -296,7 +324,7 @@
       }
       $('#kpi_due').textContent = due;
       $('#kpi_over').textContent = over;
-      $('#kpi_30').textContent = soon;
+      $('#kpi_30').textContent  = soon;
     }
 
     function renderTable(){
@@ -331,27 +359,31 @@
         const tools = tr.querySelector('div');
         const controlSafe = encodeURIComponent(d.control||'');
 
-        // ✏️ تعديل
-        const btnEdit = document.createElement('button');
-        btnEdit.className = 'px-2 py-1 rounded bg-sky-500 text-sky-950 font-bold';
-        btnEdit.textContent = '✏️ تعديل';
-        btnEdit.dataset.edit = d.id || (d.control? d.control.replace(/[\/?#\s]+/g,'-') : '');
-        btnEdit.dataset.control = encodeURIComponent(d.control||'');
-        btnEdit.dataset.site    = encodeURIComponent(d.site||'');
-        btnEdit.dataset.dept    = encodeURIComponent(d.department||'');
-        btnEdit.dataset.loc     = encodeURIComponent(d.location||'');
-        btnEdit.dataset.tech    = encodeURIComponent(d.tech||'');
-        btnEdit.dataset.pm      = encodeURIComponent(d.pm_date||'');
-        tools.appendChild(btnEdit);
+        // ✏️ تعديل (admin/engineer)
+        if (canWriteFull()) {
+          const btnEdit = document.createElement('button');
+          btnEdit.className = 'px-2 py-1 rounded bg-sky-500 text-sky-950 font-bold';
+          btnEdit.textContent = '✏️ تعديل';
+          btnEdit.dataset.edit = d.id || (d.control? d.control.replace(/[\/?#\s]+/g,'-') : '');
+          btnEdit.dataset.control = encodeURIComponent(d.control||'');
+          btnEdit.dataset.site    = encodeURIComponent(d.site||'');
+          btnEdit.dataset.dept    = encodeURIComponent(d.department||'');
+          btnEdit.dataset.loc     = encodeURIComponent(d.location||'');
+          btnEdit.dataset.tech    = encodeURIComponent(d.tech||'');
+          btnEdit.dataset.pm      = encodeURIComponent(d.pm_date||'');
+          tools.appendChild(btnEdit);
+        }
 
-        // ✅ تم عمل الصيانة
-        const btnQuick = document.createElement('button');
-        btnQuick.className = 'px-2 py-1 rounded bg-emerald-500 text-emerald-950 font-bold';
-        btnQuick.textContent = '✅ تم عمل الصيانة';
-        btnQuick.dataset.quickpm = d.id || (d.control? d.control.replace(/[\/?#\s]+/g,'-') : '');
-        tools.appendChild(btnQuick);
+        // ✅ تم عمل الصيانة (admin/engineer/tech)
+        if (canWriteFull() || canTechOnly()) {
+          const btnQuick = document.createElement('button');
+          btnQuick.className = 'px-2 py-1 rounded bg-emerald-500 text-emerald-950 font-bold';
+          btnQuick.textContent = '✅ تم عمل الصيانة';
+          btnQuick.dataset.quickpm = d.id || (d.control? d.control.replace(/[\/?#\s]+/g,'-') : '');
+          tools.appendChild(btnQuick);
+        }
 
-        // 🏷️ استيكر
+        // 🏷️ استيكر (دائمًا)
         const aSticker = document.createElement('a');
         aSticker.className = 'px-2 py-1 rounded bg-indigo-500 text-indigo-50 font-bold';
         aSticker.textContent = '🏷️ استيكر';
@@ -359,7 +391,7 @@
         aSticker.href = `sticker.html#view/${controlSafe}`;
         tools.appendChild(aSticker);
 
-        // 🔳 QR
+        // 🔳 QR (دائمًا)
         const aQR = document.createElement('a');
         aQR.className = 'px-2 py-1 rounded bg-yellow-500 text-yellow-950 font-bold';
         aQR.textContent = '🔳 QR';
@@ -367,7 +399,7 @@
         aQR.href = `qr.html?control=${controlSafe}`;
         tools.appendChild(aQR);
 
-        // 🖨️ طباعة الاستيكر
+        // 🖨️ طباعة الاستيكر (دائمًا)
         const aPrint = document.createElement('a');
         aPrint.className = 'px-2 py-1 rounded bg-pink-500 text-pink-50 font-bold';
         aPrint.textContent = '🖨️ طباعة';
@@ -375,24 +407,26 @@
         aPrint.href = `sticker.html?autoprint=1#view/${controlSafe}`;
         tools.appendChild(aPrint);
 
-        // 🗑️ مسح فردي
-        const btnDelete = document.createElement('button');
-        btnDelete.className = 'px-2 py-1 rounded bg-red-600 text-white font-bold';
-        btnDelete.textContent = '🗑️ مسح';
-        btnDelete.dataset.del = d.id || (d.control? d.control.replace(/[\/?#\s]+/g,'-') : '');
-        tools.appendChild(btnDelete);
+        // 🗑️ مسح فردي (admin فقط)
+        if (currentRole === 'admin') {
+          const btnDelete = document.createElement('button');
+          btnDelete.className = 'px-2 py-1 rounded bg-red-600 text-white font-bold';
+          btnDelete.textContent = '🗑️ مسح';
+          btnDelete.dataset.del = d.id || (d.control? d.control.replace(/[\/?#\s]+/g,'-') : '');
+          tools.appendChild(btnDelete);
+        }
 
-        tbody.appendChild(tr);
+        document.getElementById('tbody').appendChild(tr);
       }
 
       const end = Math.min(start + items.length, filtered.length);
-      $('#pageInfo').textContent = filtered.length ? `${start+1}–${end} من ${filtered.length}` : 'لا توجد بيانات';
-      $('#chkAll').checked = false;
+      document.getElementById('pageInfo').textContent = filtered.length ? `${start+1}–${end} من ${filtered.length}` : 'لا توجد بيانات';
+      document.getElementById('chkAll').checked = false;
     }
 
     // Pagination
-    $('#prev').onclick = ()=>{ if(page>1){ page--; renderTable(); } };
-    $('#next').onclick = ()=>{ if(page*pageSize < filtered.length){ page++; renderTable(); } };
+    document.getElementById('prev').onclick = ()=>{ if(page>1){ page--; renderTable(); } };
+    document.getElementById('next').onclick = ()=>{ if(page*pageSize < filtered.length){ page++; renderTable(); } };
 
     // Filters events
     ['q','filter_site','filter_dept','filter_status'].forEach(id=>{
@@ -400,8 +434,8 @@
       el.addEventListener('input', applyFilters);
       el.addEventListener('change', applyFilters);
     });
-    $('#refreshBtn').onclick = loadData;
-    $('#clearFilters').onclick = ()=>{ ['q','filter_site','filter_dept','filter_status'].forEach(id=> document.getElementById(id).value=''); applyFilters(); };
+    document.getElementById('refreshBtn').onclick = loadData;
+    document.getElementById('clearFilters').onclick = ()=>{ ['q','filter_site','filter_dept','filter_status'].forEach(id=> document.getElementById(id).value=''); applyFilters(); };
 
     // زر طباعة QR للقسم الحالي
     document.getElementById('btnDeptQR')?.addEventListener('click', ()=>{
@@ -415,50 +449,50 @@
     });
 
     // ===== Add Modal =====
-    const addModal = $('#addModal');
+    const addModal = document.getElementById('addModal');
     const openAdd  = ()=>{ addModal.classList.remove('hidden'); addModal.classList.add('flex'); };
     const closeAdd = ()=>{ addModal.classList.add('hidden'); addModal.classList.remove('flex'); };
-    $('#openAddBtn').onclick = openAdd;
-    $('#closeAdd').onclick   = closeAdd;
+    document.getElementById('openAddBtn').onclick = ()=> canWriteFull()? openAdd(): notice('صلاحياتك لا تسمح بالإضافة','error');
+    document.getElementById('closeAdd').onclick   = closeAdd;
 
-    $('#saveAdd').onclick = async ()=>{
-      const control = $('#a_control').value.trim();
-      if(!control){ notify('أدخل Control Number','error'); return; }
+    document.getElementById('saveAdd').onclick = async ()=>{
+      if(!canWriteFull()){ notice('صلاحياتك لا تسمح بالإضافة','error'); return; }
+      const control = document.getElementById('a_control').value.trim();
+      if(!control){ notice('أدخل Control Number','error'); return; }
       const data = {
         control,
-        site: $('#a_site').value.trim(),
-        department: $('#a_dept').value.trim(),
-        location: $('#a_loc').value.trim(),
-        tech: $('#a_tech').value.trim(),
-        pm_date: $('#a_pm').value || '',
+        site: document.getElementById('a_site').value.trim(),
+        department: document.getElementById('a_dept').value.trim(),
+        location: document.getElementById('a_loc').value.trim(),
+        tech: document.getElementById('a_tech').value.trim(),
+        pm_date: document.getElementById('a_pm').value || '',
       };
       data.next_date = data.pm_date ? toISO(addMonths(new Date(data.pm_date),6)) : '';
       try{
         await setDoc(doc(db,'assets', safeId(control)), {...data, updatedAt: serverTimestamp()});
-        notify('تم الحفظ ✅','ok');
-        closeAdd();
-        await loadData();
-      }catch(e){ notify('فشل الحفظ: '+e.message,'error'); }
+        notice('تم الحفظ ✅','ok'); closeAdd(); await loadData();
+      }catch(e){ notice('فشل الحفظ: '+e.message,'error'); }
     };
 
     // ===== Edit / Quick PM / Delete (delegation) =====
-    const editModal = $('#editModal');
+    const editModal = document.getElementById('editModal');
     const openEdit  = ()=>{ editModal.classList.remove('hidden'); editModal.classList.add('flex'); };
     const closeEdit = ()=>{ editModal.classList.add('hidden'); editModal.classList.remove('flex'); };
-    $('#closeEdit').onclick = closeEdit;
+    document.getElementById('closeEdit').onclick = closeEdit;
 
     document.addEventListener('click', async (e)=>{
       // فتح التعديل
       const be = e.target.closest('button[data-edit]');
       if(be){
+        if(!canWriteFull()){ notice('صلاحياتك لا تسمح بالتعديل','error'); return; }
         const id = be.dataset.edit;
-        editingId = id;
-        $('#m_control').value = decodeURIComponent(be.dataset.control||'');
-        $('#m_site').value    = decodeURIComponent(be.dataset.site||'');
-        $('#m_dept').value    = decodeURIComponent(be.dataset.dept||'');
-        $('#m_loc').value     = decodeURIComponent(be.dataset.loc||'');
-        $('#m_tech').value    = decodeURIComponent(be.dataset.tech||'');
-        $('#m_pm').value      = decodeURIComponent(be.dataset.pm||'');
+        document.getElementById('m_control').value = decodeURIComponent(be.dataset.control||'');
+        document.getElementById('m_site').value    = decodeURIComponent(be.dataset.site||'');
+        document.getElementById('m_dept').value    = decodeURIComponent(be.dataset.dept||'');
+        document.getElementById('m_loc').value     = decodeURIComponent(be.dataset.loc||'');
+        document.getElementById('m_tech').value    = decodeURIComponent(be.dataset.tech||'');
+        document.getElementById('m_pm').value      = decodeURIComponent(be.dataset.pm||'');
+        window._editingId = id;
         openEdit();
         return;
       }
@@ -466,89 +500,93 @@
       // تم عمل الصيانة الآن
       const bq = e.target.closest('button[data-quickpm]');
       if(bq){
+        if(!(canWriteFull() || canTechOnly())){ notice('صلاحياتك لا تسمح بالتحديث','error'); return; }
         try{
           const id = bq.dataset.quickpm;
           const today = toISO(new Date());
           const next  = toISO(addMonths(new Date(today),6));
           await updateDoc(doc(db,'assets', id), { pm_date: today, next_date: next, updatedAt: serverTimestamp() });
-          notify('تم تسجيل الصيانة اليوم ✅','ok');
+          notice('تم تسجيل الصيانة اليوم ✅','ok');
           await loadData();
-        }catch(err){ notify('فشل التحديث: ' + err.message, 'error'); }
+        }catch(err){ notice('فشل التحديث: ' + err.message, 'error'); }
         return;
       }
 
       // حذف فردي
       const bd = e.target.closest('button[data-del]');
       if(bd){
+        if(currentRole!=='admin'){ notice('الحذف متاح للمشرف فقط','error'); return; }
         if(!confirm('هل تريد مسح هذا الجهاز نهائيًا؟')) return;
         try{
           await deleteDoc(doc(db,'assets', bd.dataset.del));
-          notify('تم المسح 🗑️','ok');
+          notice('تم المسح 🗑️','ok');
           await loadData();
-        }catch(err){ notify('فشل المسح: '+err.message,'error'); }
+        }catch(err){ notice('فشل المسح: '+err.message,'error'); }
         return;
       }
     });
 
-    $('#saveEdit').onclick = async ()=>{
-      const control = $('#m_control').value.trim();
-      if(!control){ notify('أدخل Control Number','error'); return; }
+    document.getElementById('saveEdit').onclick = async ()=>{
+      if(!canWriteFull()){ notice('صلاحياتك لا تسمح بالتعديل','error'); return; }
+      const control = document.getElementById('m_control').value.trim();
+      if(!control){ notice('أدخل Control Number','error'); return; }
       const data = {
         control,
-        site: $('#m_site').value.trim(),
-        department: $('#m_dept').value.trim(),
-        location: $('#m_loc').value.trim(),
-        tech: $('#m_tech').value.trim(),
-        pm_date: $('#m_pm').value || '',
+        site: document.getElementById('m_site').value.trim(),
+        department: document.getElementById('m_dept').value.trim(),
+        location: document.getElementById('m_loc').value.trim(),
+        tech: document.getElementById('m_tech').value.trim(),
+        pm_date: document.getElementById('m_pm').value || '',
       };
       data.next_date = data.pm_date ? toISO(addMonths(new Date(data.pm_date),6)) : '';
-      const id = editingId || safeId(control);
+      const id = window._editingId || safeId(control);
       try{
         await setDoc(doc(db,'assets', id), {...data, updatedAt: serverTimestamp()});
-        notify('تم الحفظ ✅','ok');
+        notice('تم الحفظ ✅','ok');
         closeEdit();
         await loadData();
-      }catch(e){ notify('فشل الحفظ: '+e.message,'error'); }
+      }catch(e){ notice('فشل الحفظ: '+e.message,'error'); }
     };
 
     // ===== Select all / Bulk delete =====
-    const tbody = document.getElementById('tbody');
+    const tbodyEl = document.getElementById('tbody');
     document.getElementById('chkAll').addEventListener('change', (e)=>{
       const checked = e.target.checked;
-      tbody.querySelectorAll('.rowChk').forEach(c=> c.checked = checked);
+      tbodyEl.querySelectorAll('.rowChk').forEach(c=> c.checked = checked);
     });
 
     document.getElementById('btnBulkDelete').addEventListener('click', async ()=>{
-      const ids = Array.from(tbody.querySelectorAll('.rowChk:checked')).map(c=> c.value);
-      if(!ids.length){ notify('اختر صفًا واحدًا على الأقل للحذف','error'); return; }
+      if(currentRole!=='admin'){ notice('الحذف الجماعي للمشرف فقط','error'); return; }
+      const ids = Array.from(tbodyEl.querySelectorAll('.rowChk:checked')).map(c=> c.value);
+      if(!ids.length){ notice('اختر صفًا واحدًا على الأقل للحذف','error'); return; }
       if(!confirm(`تأكيد حذف ${ids.length} جهاز؟`)) return;
-      notify('جارِ الحذف الجماعي…','info');
+      notice('جارِ الحذف الجماعي…','info');
       let ok=0, fail=0;
       for(const id of ids){
         try{ await deleteDoc(doc(db,'assets', id)); ok++; }
         catch{ fail++; }
       }
-      notify(`تم الحذف: ${ok} | فشل: ${fail}`,(fail? 'error':'ok'));
+      notice(`تم الحذف: ${ok} | فشل: ${fail}`,(fail? 'error':'ok'));
       await loadData();
     });
 
     // ===== Load data =====
     async function loadData(){
       try{
-        notify('جارِ تحميل البيانات…');
+        notice('جارِ تحميل البيانات…');
         const qs = await getDocs(query(collection(db,'assets'), orderBy('control')));
         all = qs.docs.map(d=> ({ id: d.id, ...d.data() }));
         fillFilterOptions();
         filtered = all.slice();
         renderTable();
         renderKPI();
-        notify('تم التحميل ✅','ok');
-      }catch(e){ notify('فشل التحميل: '+e.message,'error'); }
+        notice('تم التحميل ✅','ok');
+      }catch(e){ notice('فشل التحميل: '+e.message,'error'); }
     }
 
     // أخطاء عامة
-    window.addEventListener('error', e=> notify('خطأ: '+(e.error?.message||e.message),'error'));
-    window.addEventListener('unhandledrejection', e=> notify('خطأ: '+(e.reason?.message||e.reason),'error'));
+    window.addEventListener('error', e=> notice('خطأ: '+(e.error?.message||e.message),'error'));
+    window.addEventListener('unhandledrejection', e=> notice('خطأ: '+(e.reason?.message||e.reason),'error'));
   </script>
 </body>
 </html>
