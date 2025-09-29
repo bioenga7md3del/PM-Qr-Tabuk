@@ -18,7 +18,7 @@
 </head>
 <body class="min-h-screen flex items-center justify-center px-4 py-8">
 
-  <!-- إشعار -->
+  <!-- إشعار أعلى -->
   <div id="notice" class="notice n-info w-full max-w-5xl mx-auto mb-4 rounded-lg py-2 hidden"></div>
 
   <main class="card w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
@@ -29,6 +29,7 @@
         <div class="mt-2 text-base opacity-90 font-semibold">إدارة الصيانة — قسم الأجهزة الطبية</div>
       </div>
       <div class="flex flex-col items-center gap-6">
+        <!-- حدث المسارات لو حطيت الشعارات في مجلد آخر -->
         <img src="TabukCluster.jpeg" alt="Tabuk Health Cluster" class="brand-img h-20 object-contain"/>
         <img src="FGC.jpeg" alt="First Gulf Company" class="brand-img h-16 object-contain"/>
       </div>
@@ -39,11 +40,11 @@
       <div class="max-w-md mx-auto">
         <!-- Tabs -->
         <div class="flex gap-2 mb-6">
-          <button id="tabLogin" class="px-4 py-2 rounded-lg font-bold bg-sky-500 text-white">تسجيل الدخول</button>
+          <button id="tabLogin"  class="px-4 py-2 rounded-lg font-bold bg-sky-500 text-white">تسجيل الدخول</button>
           <button id="tabSignup" class="px-4 py-2 rounded-lg font-bold bg-slate-200 text-slate-800">إضافة مستخدم جديد</button>
         </div>
 
-        <!-- Login form -->
+        <!-- Login -->
         <div id="loginPane">
           <label class="block text-slate-700 font-semibold mb-2" for="email">Email</label>
           <input id="email" type="email" placeholder="example@domain.com"
@@ -62,7 +63,7 @@
           </button>
         </div>
 
-        <!-- Signup form -->
+        <!-- Signup -->
         <div id="signupPane" class="hidden">
           <label class="block text-slate-700 font-semibold mb-2" for="s_name">الاسم</label>
           <input id="s_name" type="text" placeholder="الاسم الكامل"
@@ -93,10 +94,13 @@
     </section>
   </main>
 
-  <!-- Firebase -->
+  <!-- Firebase + منطق الولوج/التسجيل -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+    import {
+      getAuth, signInWithEmailAndPassword, sendPasswordResetEmail,
+      onAuthStateChanged, createUserWithEmailAndPassword, updateProfile
+    } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
     import { getFirestore, setDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -114,10 +118,13 @@
 
     const $ = s => document.querySelector(s);
     const notice = (msg, type='info')=>{
-      const n = $('#notice'); n.textContent = msg; n.className = 'notice ' + (type==='ok'?'n-ok':type==='error'?'n-err':'n-info'); n.classList.remove('hidden');
+      const n = $('#notice');
+      n.textContent = msg;
+      n.className = 'notice ' + (type==='ok'?'n-ok':type==='error'?'n-err':'n-info');
+      n.classList.remove('hidden');
     };
 
-    // تبويب بين تسجيل الدخول/التسجيل
+    // التبويب
     const loginPane  = $('#loginPane');
     const signupPane = $('#signupPane');
     $('#tabLogin').onclick = ()=>{
@@ -133,8 +140,10 @@
       $('#tabLogin').className='px-4 py-2 rounded-lg font-bold bg-slate-200 text-slate-800';
     };
 
-    onAuthStateChanged(auth, (u)=>{ if(u) window.location.href='index.html'; });
     $('#year').textContent = new Date().getFullYear();
+
+    // لو مسجل دخول بالفعل
+    onAuthStateChanged(auth, (u)=>{ if(u) window.location.href='index.html'; });
 
     // Login
     $('#btnLogin').addEventListener('click', async ()=>{
@@ -151,6 +160,7 @@
         if(e.code==='auth/wrong-password') msg='كلمة المرور غير صحيحة';
         if(e.code==='auth/too-many-requests') msg='محاولات كثيرة، حاول لاحقًا';
         notice(msg,'error');
+        console.error(e);
       }
     });
 
@@ -164,36 +174,56 @@
       }catch(e){ notice('تعذر إرسال رابط الاستعادة: '+(e.message||''),'error'); }
     });
 
-    // Signup
+    // ===== Signup (مع ضمان إنشاء مستند المستخدم في Firestore) =====
     $('#btnSignup').addEventListener('click', async ()=>{
-      const name = $('#s_name').value.trim();
+      const name  = $('#s_name').value.trim();
       const email = $('#s_email').value.trim();
       const pass  = $('#s_password').value;
       if(!name || !email || !pass){ notice('أكمل بيانات التسجيل','error'); return; }
+
       try{
         const cred = await createUserWithEmailAndPassword(auth, email, pass);
         await updateProfile(cred.user, { displayName: name });
-        // أنشئ مستند المستخدم بدور viewer افتراضيًا
-        await setDoc(doc(db,'users', cred.user.uid), {
-          name, email, role:'viewer', sites:[], departments:[], createdAt: serverTimestamp()
-        });
+        await cred.user.getIdToken(true); // تأكيد التوكن
+
+        // كتابة مستند المستخدم مع إعادة محاولة
+        const writeUserDoc = async (retries=2)=>{
+          try{
+            await setDoc(doc(db,'users', cred.user.uid), {
+              name, email, role:'viewer', sites:[], departments:[], createdAt: serverTimestamp()
+            }, { merge:true });
+          }catch(e){
+            if((e.code==='permission-denied'||e.code==='unavailable') && retries>0){
+              await new Promise(r=>setTimeout(r,600));
+              await cred.user.getIdToken(true);
+              return writeUserDoc(retries-1);
+            }
+            throw e;
+          }
+        };
+        await writeUserDoc();
+
         notice('تم إنشاء الحساب وتسجيل الدخول ✅','ok');
         window.location.href='index.html';
       }catch(e){
         let msg='تعذر إنشاء الحساب';
         if(e.code==='auth/email-already-in-use') msg='البريد مستخدم بالفعل';
-        if(e.code==='auth/weak-password') msg='كلمة المرور ضعيفة';
-        notice(msg,'error');
+        if(e.code==='auth/weak-password')       msg='كلمة المرور ضعيفة';
+        if(e.code==='permission-denied')        msg='قواعد Firestore تمنع إنشاء المستخدم';
+        notice(msg+(e.code?` (${e.code})`:''),'error');
+        console.error(e);
       }
     });
 
     // Enter shortcuts
     ['email','password','s_name','s_email','s_password'].forEach(id=>{
       const el=document.getElementById(id);
-      el && el.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter'){ 
-        if(!signupPane.classList.contains('hidden')) $('#btnSignup').click();
-        else $('#btnLogin').click();
-      }});
+      el && el.addEventListener('keydown', (ev)=>{
+        if(ev.key==='Enter'){
+          if(!signupPane.classList.contains('hidden')) $('#btnSignup').click();
+          else $('#btnLogin').click();
+        }
+      });
     });
   </script>
 </body>
