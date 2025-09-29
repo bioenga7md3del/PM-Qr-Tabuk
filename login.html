@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Login • PM-QR</title>
+  <title>Login • PPM TABUK</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body{background:#0b1220}
@@ -18,55 +18,86 @@
 </head>
 <body class="min-h-screen flex items-center justify-center px-4 py-8">
 
-  <!-- إشعار أعلى -->
-  <div id="notice" class="notice n-info w-full max-w-5xl mx-auto mb-4 rounded-lg py-2 hidden">…</div>
+  <!-- إشعار -->
+  <div id="notice" class="notice n-info w-full max-w-5xl mx-auto mb-4 rounded-lg py-2 hidden"></div>
 
   <main class="card w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
-    <!-- العمود الأيسر (صورة/لوجوهات) -->
+    <!-- يسار: الشعارات والنص -->
     <aside class="leftClip hidden lg:flex flex-col items-center justify-center gap-8 bg-gradient-to-br from-sky-500 to-blue-600 p-10 text-white">
-      <div class="text-center">
-        <div class="text-2xl font-extrabold">إدارة أصولك بأمان</div>
-        <div class="opacity-90">نظام الصيانة الوقائية PM-QR</div>
+      <div class="text-center leading-relaxed">
+        <div class="text-2xl font-extrabold tracking-wide">Welcome to PPM TABUK</div>
+        <div class="mt-2 text-base opacity-90 font-semibold">إدارة الصيانة — قسم الأجهزة الطبية</div>
       </div>
       <div class="flex flex-col items-center gap-6">
-        <!-- ضع مسارات الشعارات الموجودة في المستودع -->
         <img src="TabukCluster.jpeg" alt="Tabuk Health Cluster" class="brand-img h-20 object-contain"/>
         <img src="FGC.jpeg" alt="First Gulf Company" class="brand-img h-16 object-contain"/>
       </div>
     </aside>
 
-    <!-- العمود الأيمن (الفورم) -->
+    <!-- يمين: الولوج/التسجيل -->
     <section class="p-8 md:p-12">
       <div class="max-w-md mx-auto">
-        <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 mb-6">Welcome to IAssets</h1>
-
-        <label class="block text-slate-700 font-semibold mb-2" for="email">Email</label>
-        <input id="email" type="email" placeholder="example@domain.com"
-               class="w-full mb-4 px-4 py-3 rounded-lg border border-slate-300 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500"/>
-
-        <div class="flex items-center justify-between">
-          <label class="block text-slate-700 font-semibold mb-2" for="password">Password</label>
-          <button id="btnReset" class="text-sky-600 hover:underline text-sm">Forgot Password ?</button>
+        <!-- Tabs -->
+        <div class="flex gap-2 mb-6">
+          <button id="tabLogin" class="px-4 py-2 rounded-lg font-bold bg-sky-500 text-white">تسجيل الدخول</button>
+          <button id="tabSignup" class="px-4 py-2 rounded-lg font-bold bg-slate-200 text-slate-800">إضافة مستخدم جديد</button>
         </div>
-        <input id="password" type="password" placeholder="••••••••"
-               class="w-full mb-6 px-4 py-3 rounded-lg border border-slate-300 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500"/>
 
-        <button id="btnLogin"
-                class="w-full py-3 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-bold transition">
-          Login
-        </button>
+        <!-- Login form -->
+        <div id="loginPane">
+          <label class="block text-slate-700 font-semibold mb-2" for="email">Email</label>
+          <input id="email" type="email" placeholder="example@domain.com"
+                 class="w-full mb-4 px-4 py-3 rounded-lg border border-slate-300 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+
+          <div class="flex items-center justify-between">
+            <label class="block text-slate-700 font-semibold mb-2" for="password">Password</label>
+            <button id="btnReset" class="text-sky-600 hover:underline text-sm">Forgot Password ?</button>
+          </div>
+          <input id="password" type="password" placeholder="••••••••"
+                 class="w-full mb-6 px-4 py-3 rounded-lg border border-slate-300 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+
+          <button id="btnLogin"
+                  class="w-full py-3 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-bold transition">
+            Login
+          </button>
+        </div>
+
+        <!-- Signup form -->
+        <div id="signupPane" class="hidden">
+          <label class="block text-slate-700 font-semibold mb-2" for="s_name">الاسم</label>
+          <input id="s_name" type="text" placeholder="الاسم الكامل"
+                 class="w-full mb-4 px-4 py-3 rounded-lg border border-slate-300 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+
+          <label class="block text-slate-700 font-semibold mb-2" for="s_email">Email</label>
+          <input id="s_email" type="email" placeholder="user@domain.com"
+                 class="w-full mb-4 px-4 py-3 rounded-lg border border-slate-300 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+
+          <label class="block text-slate-700 font-semibold mb-2" for="s_password">Password</label>
+          <input id="s_password" type="password" placeholder="••••••••"
+                 class="w-full mb-6 px-4 py-3 rounded-lg border border-slate-300 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+
+          <button id="btnSignup"
+                  class="w-full py-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition">
+            إنشاء حساب جديد
+          </button>
+
+          <p class="mt-3 text-sm text-slate-500">
+            * سيتم إنشاء الحساب بدور <strong>viewer</strong> افتراضيًا. يمكن ترقيته من “إدارة المستخدمين”.
+          </p>
+        </div>
 
         <div class="mt-8 text-center text-slate-500 text-sm">
-          © <span id="year"></span> PM-QR
+          © <span id="year"></span> PPM TABUK
         </div>
       </div>
     </section>
   </main>
 
-  <!-- Firebase + منطق الدخول -->
+  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+    import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+    import { getFirestore, setDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
@@ -79,19 +110,31 @@
 
     const app  = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+    const db   = getFirestore(app);
 
     const $ = s => document.querySelector(s);
     const notice = (msg, type='info')=>{
-      const n = $('#notice'); n.textContent = msg; n.className = 'notice ' + (type==='ok'?'n-ok':type==='error'?'n-err':'n-info');
-      n.classList.remove('hidden');
+      const n = $('#notice'); n.textContent = msg; n.className = 'notice ' + (type==='ok'?'n-ok':type==='error'?'n-err':'n-info'); n.classList.remove('hidden');
     };
 
-    // لو المستخدم مسجل أصلاً، دخّله مباشرة
-    onAuthStateChanged(auth, (u)=>{
-      if(u) { window.location.href = 'index.html'; }
-    });
+    // تبويب بين تسجيل الدخول/التسجيل
+    const loginPane  = $('#loginPane');
+    const signupPane = $('#signupPane');
+    $('#tabLogin').onclick = ()=>{
+      loginPane.classList.remove('hidden');
+      signupPane.classList.add('hidden');
+      $('#tabLogin').className='px-4 py-2 rounded-lg font-bold bg-sky-500 text-white';
+      $('#tabSignup').className='px-4 py-2 rounded-lg font-bold bg-slate-200 text-slate-800';
+    };
+    $('#tabSignup').onclick = ()=>{
+      signupPane.classList.remove('hidden');
+      loginPane.classList.add('hidden');
+      $('#tabSignup').className='px-4 py-2 rounded-lg font-bold bg-sky-500 text-white';
+      $('#tabLogin').className='px-4 py-2 rounded-lg font-bold bg-slate-200 text-slate-800';
+    };
 
-    document.getElementById('year').textContent = new Date().getFullYear();
+    onAuthStateChanged(auth, (u)=>{ if(u) window.location.href='index.html'; });
+    $('#year').textContent = new Date().getFullYear();
 
     // Login
     $('#btnLogin').addEventListener('click', async ()=>{
@@ -103,11 +146,11 @@
         notice('تم تسجيل الدخول ✅','ok');
         window.location.href = 'index.html';
       }catch(e){
-        let msg = 'فشل تسجيل الدخول';
-        if(e.code === 'auth/user-not-found') msg = 'الحساب غير موجود';
-        if(e.code === 'auth/wrong-password') msg = 'كلمة المرور غير صحيحة';
-        if(e.code === 'auth/too-many-requests') msg = 'محاولات كثيرة، حاول لاحقًا';
-        notice(msg, 'error');
+        let msg='فشل تسجيل الدخول';
+        if(e.code==='auth/user-not-found') msg='الحساب غير موجود';
+        if(e.code==='auth/wrong-password') msg='كلمة المرور غير صحيحة';
+        if(e.code==='auth/too-many-requests') msg='محاولات كثيرة، حاول لاحقًا';
+        notice(msg,'error');
       }
     });
 
@@ -118,16 +161,39 @@
       try{
         await sendPasswordResetEmail(auth, email);
         notice('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك ✅','ok');
+      }catch(e){ notice('تعذر إرسال رابط الاستعادة: '+(e.message||''),'error'); }
+    });
+
+    // Signup
+    $('#btnSignup').addEventListener('click', async ()=>{
+      const name = $('#s_name').value.trim();
+      const email = $('#s_email').value.trim();
+      const pass  = $('#s_password').value;
+      if(!name || !email || !pass){ notice('أكمل بيانات التسجيل','error'); return; }
+      try{
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        await updateProfile(cred.user, { displayName: name });
+        // أنشئ مستند المستخدم بدور viewer افتراضيًا
+        await setDoc(doc(db,'users', cred.user.uid), {
+          name, email, role:'viewer', sites:[], departments:[], createdAt: serverTimestamp()
+        });
+        notice('تم إنشاء الحساب وتسجيل الدخول ✅','ok');
+        window.location.href='index.html';
       }catch(e){
-        notice('تعذر إرسال رابط الاستعادة: ' + (e.message||''), 'error');
+        let msg='تعذر إنشاء الحساب';
+        if(e.code==='auth/email-already-in-use') msg='البريد مستخدم بالفعل';
+        if(e.code==='auth/weak-password') msg='كلمة المرور ضعيفة';
+        notice(msg,'error');
       }
     });
 
-    // إدخال بالـ Enter
-    ['email','password'].forEach(id=>{
-      document.getElementById(id).addEventListener('keydown', (ev)=>{
-        if(ev.key==='Enter') $('#btnLogin').click();
-      });
+    // Enter shortcuts
+    ['email','password','s_name','s_email','s_password'].forEach(id=>{
+      const el=document.getElementById(id);
+      el && el.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter'){ 
+        if(!signupPane.classList.contains('hidden')) $('#btnSignup').click();
+        else $('#btnLogin').click();
+      }});
     });
   </script>
 </body>
