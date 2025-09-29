@@ -39,6 +39,7 @@
         <a href="import.html" class="px-3 py-2 rounded-lg bg-emerald-500 text-emerald-950 font-bold hover:opacity-90" id="linkImport">📂 رفع ملف إكسل</a>
         <button id="openAddBtn" class="px-3 py-2 rounded-lg bg-sky-500 text-sky-950 font-bold hover:opacity-90">➕ إضافة جهاز</button>
         <button id="signOutBtn" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700">تسجيل الخروج</button>
+        <button id="btnAdmin" class="px-3 py-2 rounded-lg bg-purple-500 text-purple-950 font-bold hover:opacity-90" style="display:none"> 👑 إدارة المستخدمين</button>
       </div>
     </div>
   </header>
@@ -243,20 +244,24 @@
     // ===== Roles =====
     let currentRole = localStorage.getItem('pmqr_role') || null;
     function applyRoleUI(role){
-      currentRole = role;
-      $('#userRole').textContent = role ? `(${role})` : '(viewer)';
-      const btnOpenAdd = $('#openAddBtn');
-      const btnBulkDel = $('#btnBulkDelete');
-      const linkImport = $('#linkImport');
+  currentRole = role;
+  document.getElementById('userRole').textContent = role ? `(${role})` : '(viewer)';
 
-      const canCreate = role==='admin' || role==='engineer';
-      const canBulk   = role==='admin';
-      const canImport = role==='admin' || role==='engineer';
+  const btnOpenAdd = document.getElementById('openAddBtn');
+  const btnBulkDel = document.getElementById('btnBulkDelete');
+  const linkImport = document.getElementById('linkImport');
+  const btnAdmin   = document.getElementById('btnAdmin');
 
-      if(btnOpenAdd) btnOpenAdd.style.display = canCreate ? '' : 'none';
-      if(btnBulkDel) btnBulkDel.style.display = canBulk   ? '' : 'none';
-      if(linkImport) linkImport.style.display = canImport ? '' : 'none';
-    }
+  const canCreate = role==='admin' || role==='engineer';
+  const canBulk   = role==='admin';
+  const canImport = role==='admin' || role==='engineer';
+  const isAdmin   = role==='admin';
+
+  if(btnOpenAdd) btnOpenAdd.style.display = canCreate ? '' : 'none';
+  if(btnBulkDel) btnBulkDel.style.display = canBulk   ? '' : 'none';
+  if(linkImport) linkImport.style.display = canImport ? '' : 'none';
+  if(btnAdmin)   btnAdmin.style.display   = isAdmin   ? '' : 'none';
+}
     const canWriteFull = ()=> currentRole==='admin' || currentRole==='engineer';
     const canTechOnly  = ()=> currentRole==='tech';
 
@@ -583,7 +588,9 @@
         notice('تم التحميل ✅','ok');
       }catch(e){ notice('فشل التحميل: '+e.message,'error'); }
     }
-
+document.getElementById('btnAdmin')?.addEventListener('click', ()=>{
+  window.location.href = 'admin.html';
+});
     // أخطاء عامة
     window.addEventListener('error', e=> notice('خطأ: '+(e.error?.message||e.message),'error'));
     window.addEventListener('unhandledrejection', e=> notice('خطأ: '+(e.reason?.message||e.reason),'error'));
