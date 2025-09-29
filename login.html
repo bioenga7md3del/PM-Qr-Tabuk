@@ -3,74 +3,66 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>تسجيل الدخول – PM-QR</title>
+<title>PM-QR – Login</title>
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<script src="https://cdn.tailwindcss.com"></script>
 <style>
-  :root{--bg:#0b1220;--card:#111827;--muted:#94a3b8;--text:#e5e7eb;--ok:#10b981;--err:#ef4444;--info:#3b82f6}
-  html,body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0}
-  .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px}
-  .card{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:22px;box-shadow:0 14px 40px rgba(0,0,0,.35);max-width:440px;width:100%}
-  h1{margin:0 0 6px}
-  .muted{color:var(--muted);margin-bottom:14px}
-  .tabs{display:flex;gap:8px;margin-bottom:12px}
-  .tab{flex:1;padding:10px;border-radius:10px;border:1px solid #1f2937;text-align:center;cursor:pointer;font-weight:800;background:#0f172a}
-  .tab.active{background:#1e293b}
-  .row{display:flex;flex-direction:column;gap:10px}
-  label{font-size:.9rem;color:#cbd5e1}
-  input{padding:12px;border-radius:10px;border:1px solid #374151;background:#0b1220;color:#fff}
-  .btn{padding:12px;border-radius:10px;border:0;cursor:pointer;font-weight:800}
-  .btn-ok{background:var(--ok);color:#052e2b}
-  .btn-sec{background:#3b82f6;color:#e0f2fe}
-  .msg{margin-top:10px;font-weight:700}
-  .err{color:#fecaca} .ok{color:#a7f3d0}
-  .links{display:flex;gap:10px;justify-content:space-between;margin-top:10px}
+  body{background:#0b1220;color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  .card{background:#111827;border:1px solid #1f2937;border-radius:16px;box-shadow:0 12px 36px rgba(0,0,0,.35)}
+  .notice{position:sticky;top:0;z-index:50;text-align:center;font-weight:800}
+  .n-ok{background:rgba(16,185,129,.15);border-bottom:1px solid rgba(16,185,129,.5);color:#a7f3d0}
+  .n-err{background:rgba(239,68,68,.15);border-bottom:1px solid rgba(239,68,68,.5);color:#fecaca}
+  .n-info{background:rgba(59,130,246,.15);border-bottom:1px solid rgba(59,130,246,.5);color:#bfdbfe}
+  input{background:#0b1220;border:1px solid #374151;border-radius:12px;padding:12px;color:#fff}
+  label{color:#cbd5e1;font-size:.9rem}
+  .tab{cursor:pointer;padding:.5rem 1rem;border-radius:999px;border:1px solid #334155}
+  .tab.active{background:#3b82f6;color:#e0f2fe;border-color:#3b82f6}
 </style>
 </head>
-<body>
-<div class="wrap">
-  <div class="card">
-    <h1>PM-QR</h1>
-    <div class="muted">سجّل للدخول أو أنشئ حسابًا جديدًا.</div>
+<body class="min-h-screen flex items-center justify-center px-4">
+  <div id="notice" class="notice n-info w-full py-2">مرحبًا! سجّل الدخول للمتابعة…</div>
 
-    <div class="tabs">
-      <button class="tab active" id="tabSignin">تسجيل دخول</button>
-      <button class="tab" id="tabSignup">تسجيل جديد</button>
+  <div class="card w-full max-w-xl p-6">
+    <h1 class="text-2xl font-extrabold mb-4">PM-QR – تسجيل الدخول</h1>
+
+    <div class="flex items-center gap-2 mb-5">
+      <button id="tabLogin" class="tab active">تسجيل الدخول</button>
+      <button id="tabRegister" class="tab">تسجيل جديد</button>
     </div>
 
-    <!-- Sign in form -->
-    <div id="signinForm" class="row">
-      <label>البريد الإلكتروني</label>
-      <input id="in_email" type="email" placeholder="email@example.com"/>
-      <label>كلمة المرور</label>
-      <input id="in_pass" type="password" placeholder="••••••••"/>
-      <button class="btn btn-ok" id="signinBtn">دخول</button>
-      <div class="links">
-        <button class="btn btn-sec" id="resetBtn" type="button">نسيت كلمة المرور</button>
-        <a href="sticker.html" class="btn btn-sec" style="text-decoration:none;text-align:center">صفحة الاستيكر</a>
+    <form id="formLogin" class="space-y-3">
+      <div class="grid gap-2">
+        <label>البريد الإلكتروني</label>
+        <input id="l_email" type="email" placeholder="example@domain.com" required/>
       </div>
-      <div id="msgIn" class="msg"></div>
-    </div>
-
-    <!-- Sign up form -->
-    <div id="signupForm" class="row" style="display:none">
-      <label>الاسم الكامل</label>
-      <input id="up_name" type="text" placeholder="الاسم كما سيظهر للنظام"/>
-      <label>البريد الإلكتروني</label>
-      <input id="up_email" type="email" placeholder="email@example.com"/>
-      <label>كلمة المرور</label>
-      <input id="up_pass" type="password" placeholder="ثمانية أحرف على الأقل"/>
-      <button class="btn btn-ok" id="signupBtn">تسجيل حساب جديد</button>
-      <div class="links">
-        <a href="sticker.html" class="btn btn-sec" style="text-decoration:none;text-align:center">صفحة الاستيكر</a>
+      <div class="grid gap-2">
+        <label>كلمة المرور</label>
+        <input id="l_password" type="password" placeholder="••••••••" required/>
       </div>
-      <div id="msgUp" class="msg"></div>
-    </div>
+      <button type="submit" class="w-full py-3 bg-sky-600 rounded-xl font-bold hover:opacity-90">دخول</button>
+    </form>
+
+    <form id="formRegister" class="space-y-3 hidden">
+      <div class="grid gap-2">
+        <label>الاسم</label>
+        <input id="r_name" type="text" placeholder="الاسم الكامل"/>
+      </div>
+      <div class="grid gap-2">
+        <label>البريد الإلكتروني</label>
+        <input id="r_email" type="email" placeholder="example@domain.com" required/>
+      </div>
+      <div class="grid gap-2">
+        <label>كلمة المرور</label>
+        <input id="r_password" type="password" placeholder="••••••••" required/>
+      </div>
+      <p class="text-sm text-slate-400">ملاحظة: الدور الافتراضي للمستخدم الجديد <b>viewer</b>. يمكنك ترقيته من Firestore لاحقًا.</p>
+      <button type="submit" class="w-full py-3 bg-emerald-600 rounded-xl font-bold hover:opacity-90">تسجيل</button>
+    </form>
   </div>
-</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -81,104 +73,88 @@ const firebaseConfig = {
   messagingSenderId: "305570616285",
   appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
 };
-const app  = initializeApp(firebaseConfig);
+
+const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-// Tabs
-const tabSignin = document.getElementById('tabSignin');
-const tabSignup = document.getElementById('tabSignup');
-const signinForm= document.getElementById('signinForm');
-const signupForm= document.getElementById('signupForm');
+const $ = s=>document.querySelector(s);
+const notice = (msg,t='info')=>{
+  const n = $('#notice'); n.textContent = msg;
+  n.className = 'notice ' + (t==='ok'?'n-ok': t==='error'?'n-err':'n-info');
+};
 
-tabSignin.onclick = ()=>{ tabSignin.classList.add('active'); tabSignup.classList.remove('active'); signinForm.style.display='flex'; signupForm.style.display='none'; };
-tabSignup.onclick = ()=>{ tabSignup.classList.add('active'); tabSignin.classList.remove('active'); signinForm.style.display='none'; signupForm.style.display='flex'; };
+// تبويب
+const tabLogin = $('#tabLogin'), tabRegister = $('#tabRegister');
+const formLogin = $('#formLogin'), formRegister = $('#formRegister');
+tabLogin.onclick = ()=>{ tabLogin.classList.add('active'); tabRegister.classList.remove('active'); formLogin.classList.remove('hidden'); formRegister.classList.add('hidden'); };
+tabRegister.onclick = ()=>{ tabRegister.classList.add('active'); tabLogin.classList.remove('active'); formRegister.classList.remove('hidden'); formLogin.classList.add('hidden'); };
 
-// Helpers
-function show(el, msg, ok=false){ el.textContent = msg; el.className = 'msg ' + (ok ? 'ok' : 'err'); }
-
-// If already logged-in → to index
+// لو مسجّل بالفعل → روح للداشبورد
 onAuthStateChanged(auth, async (user)=>{
   if(user){
-    // تأكيد أن المستخدم مخوّل من مجموعة users
-    const ok = await isWhitelisted(user.uid);
-    if(ok){ location.href = 'index.html'; }
-    else { await signOut(auth); }
+    // حاول تجيب دوره وخزّنه
+    try{
+      const snap = await getDoc(doc(db,'users', user.uid));
+      const role = snap.exists() ? (snap.data().role || 'viewer') : 'viewer';
+      localStorage.setItem('pmqr_role', role);
+    }catch{}
+    location.href = 'index.html';
   }
 });
 
-// تحقق من وجود المستخدم في Firestore users وتمكينه
-async function isWhitelisted(uid){
+// تسجيل الدخول
+formLogin.onsubmit = async (e)=>{
+  e.preventDefault();
+  const email = $('#l_email').value.trim();
+  const pass  = $('#l_password').value;
   try{
-    const snap = await getDoc(doc(db,'users', uid));
-    return snap.exists() && (snap.data().enabled !== false);
-  }catch{ return false; }
-}
-
-// Sign in
-document.getElementById('signinBtn').onclick = async ()=>{
-  const email = document.getElementById('in_email').value.trim();
-  const pass  = document.getElementById('in_pass').value;
-  const msgEl = document.getElementById('msgIn');
-  if(!email || !pass){ show(msgEl,'أكمل البريد وكلمة المرور'); return; }
-  try{
-    const cred = await signInWithEmailAndPassword(auth, email, pass);
-    const ok   = await isWhitelisted(cred.user.uid);
-    if(!ok){
-      await signOut(auth);
-      show(msgEl,'هذا الحساب غير مخوّل — من فضلك تواصل مع المشرف لإضافتك في users.', false);
-      return;
-    }
-    show(msgEl,'تم تسجيل الدخول ✅', true);
-    setTimeout(()=> location.href='index.html', 400);
+    notice('جارِ تسجيل الدخول…');
+    const {user} = await signInWithEmailAndPassword(auth, email, pass);
+    // اقرأ الدور وخزّنه
+    try{
+      const snap = await getDoc(doc(db,'users', user.uid));
+      const role = snap.exists() ? (snap.data().role || 'viewer') : 'viewer';
+      localStorage.setItem('pmqr_role', role);
+    }catch{}
+    notice('تم الدخول ✅','ok');
+    location.href = 'index.html';
   }catch(e){
-    show(msgEl,'فشل الدخول: ' + (e.code||e.message));
+    notice('فشل تسجيل الدخول: ' + e.message, 'error');
   }
 };
 
-// Reset password
-document.getElementById('resetBtn').onclick = async ()=>{
-  const email = document.getElementById('in_email').value.trim();
-  const msgEl = document.getElementById('msgIn');
-  if(!email){ show(msgEl,'اكتب البريد أولاً لإرسال رابط إعادة التعيين'); return; }
+// تسجيل جديد
+formRegister.onsubmit = async (e)=>{
+  e.preventDefault();
+  const name = $('#r_name').value.trim();
+  const email = $('#r_email').value.trim();
+  const pass  = $('#r_password').value;
+  if(!email || !pass){ notice('أدخل بريد وكلمة مرور', 'error'); return; }
   try{
-    await sendPasswordResetEmail(auth, email);
-    show(msgEl,'تم إرسال رابط إعادة التعيين إلى بريدك ✅', true);
-  }catch(e){
-    show(msgEl,'تعذر إرسال الرابط: ' + (e.code||e.message));
-  }
-};
-
-// Sign up (Register)
-document.getElementById('signupBtn').onclick = async ()=>{
-  const name  = document.getElementById('up_name').value.trim();
-  const email = document.getElementById('up_email').value.trim();
-  const pass  = document.getElementById('up_pass').value;
-  const msgEl = document.getElementById('msgUp');
-
-  if(!name || !email || !pass){ show(msgEl,'أكمل الاسم والإيميل وكلمة المرور'); return; }
-  if(pass.length < 6){ show(msgEl,'كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
-
-  try{
-    // إنشاء حساب Auth
-    const cred = await createUserWithEmailAndPassword(auth, email, pass);
-    const uid  = cred.user.uid;
-
-    // إنشاء مستند في users بنفس UID
-    await setDoc(doc(db,'users', uid), {
-      name, email,
-      role: 'technician',      // تقدر تعدّلها لاحقاً من Firestore
-      enabled: true,           // لو عايز موافقة إدارية خلّيها false وافتحها يدويًا
-      createdAt: serverTimestamp()
+    notice('جارِ إنشاء الحساب…');
+    const {user} = await createUserWithEmailAndPassword(auth, email, pass);
+    // إنشاء مستند المستخدم (role=viewer افتراضيًا)
+    await setDoc(doc(db,'users', user.uid), {
+      name: name || '',
+      email,
+      role: 'viewer',
+      sites: [],
+      departments: [],
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     });
-
-    show(msgEl,'تم إنشاء الحساب وإضافته للنظام ✅ يمكنك الدخول الآن', true);
-    // تحويل مباشر للوحة
-    setTimeout(()=> location.href='index.html', 500);
+    localStorage.setItem('pmqr_role', 'viewer');
+    notice('تم إنشاء الحساب ✅','ok');
+    location.href = 'index.html';
   }catch(e){
-    show(msgEl,'فشل التسجيل: ' + (e.code||e.message));
+    notice('فشل إنشاء الحساب: ' + e.message, 'error');
   }
 };
+
+// أخطاء عامة
+window.addEventListener('error', e=> notice('خطأ: '+(e.error?.message||e.message),'error'));
+window.addEventListener('unhandledrejection', e=> notice('خطأ: '+(e.reason?.message||e.reason),'error'));
 </script>
 </body>
 </html>
