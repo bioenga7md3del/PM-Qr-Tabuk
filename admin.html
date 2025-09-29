@@ -15,6 +15,18 @@
   input,select,textarea{background:#0b1220;border:1px solid #374151;border-radius:12px;padding:10px;color:#fff}
   table td,table th{white-space:nowrap}
   @media (max-width:768px){ table{font-size:.9rem} }
+
+  /* إصلاح ألوان النافذة */
+  .modal{background:#ffffff !important;color:#0f172a !important}
+  .modal input,.modal select,.modal textarea{
+    background:#f8fafc !important;color:#0f172a !important;border:1px solid #cbd5e1 !important;
+    border-radius:10px;padding:10px;
+  }
+  .pill{padding:.2rem .5rem;border-radius:999px;font-size:.75rem;font-weight:800}
+  .role-admin{background:#fde68a;color:#78350f}
+  .role-engineer{background:#bfdbfe;color:#1e3a8a}
+  .role-tech{background:#bbf7d0;color:#14532d}
+  .role-viewer{background:#e5e7eb;color:#111827}
 </style>
 </head>
 <body class="min-h-screen">
@@ -30,12 +42,13 @@
   </header>
 
   <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
-    <!-- إضافة مستخدم -->
+    <!-- إضافة / تحديث مستند مستخدم -->
     <section class="card p-4">
-      <h2 class="text-lg font-extrabold mb-3">➕ إضافة مستخدم (إنشاء/تحديث مستند users/{uid})</h2>
-      <p class="text-slate-300 text-sm mb-3">
-        ملاحظة: لازم يكون المستخدم مسجّل بالفعل في Authentication. انسخ <b>UID</b> من Firebase Console → Authentication والصقه هنا.
+      <h2 class="text-lg font-extrabold mb-3">➕ إضافة/تحديث مستخدم (users/{uid})</h2>
+      <p class="text-slate-300 text-sm mb-4">
+        يجب أن يكون المستخدم موجودًا في Authentication مسبقًا. الصق <b>UID</b> من صفحة Authentication.
       </p>
+
       <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
         <input id="u_uid"  placeholder="UID" class="md:col-span-2"/>
         <input id="u_name" placeholder="الاسم"/>
@@ -46,10 +59,23 @@
           <option value="engineer">engineer</option>
           <option value="admin">admin</option>
         </select>
-        <input id="u_sites" placeholder="المواقع (مفصولة بفواصل)"/>
-        <input id="u_depts" placeholder="الأقسام (مفصولة بفواصل)"/>
       </div>
-      <div class="flex justify-end mt-3">
+
+      <!-- اختيار المواقع والأقسام -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div>
+          <div class="mb-2 font-bold">المواقع المسموح بها</div>
+          <div id="u_sitesBox" class="flex flex-wrap gap-2 max-h-40 overflow-auto p-3 rounded border border-slate-700 bg-slate-950"></div>
+          <input id="u_sitesExtra" class="mt-2 w-full" placeholder="إضافات يدوية (افصلها بفواصل)"/>
+        </div>
+        <div>
+          <div class="mb-2 font-bold">الأقسام المسموح بها</div>
+          <div id="u_deptsBox" class="flex flex-wrap gap-2 max-h-40 overflow-auto p-3 rounded border border-slate-700 bg-slate-950"></div>
+          <input id="u_deptsExtra" class="mt-2 w-full" placeholder="إضافات يدوية (افصلها بفواصل)"/>
+        </div>
+      </div>
+
+      <div class="flex justify-end mt-4">
         <button id="btnSaveUser" class="px-4 py-2 rounded-lg bg-sky-600 font-bold hover:opacity-90">حفظ المستخدم</button>
       </div>
     </section>
@@ -84,11 +110,12 @@
 
   <!-- نافذة تعديل -->
   <div id="editModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center">
-    <div class="bg-white text-black rounded-xl p-5 w-full max-w-2xl">
+    <div class="modal rounded-xl p-5 w-full max-w-3xl">
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-lg font-bold">تعديل مستخدم</h3>
         <button id="closeEdit" class="px-3 py-1 bg-gray-200 rounded">✕</button>
       </div>
+
       <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
         <input id="e_uid"  placeholder="UID" class="md:col-span-2" disabled/>
         <input id="e_name" placeholder="الاسم"/>
@@ -99,10 +126,22 @@
           <option value="engineer">engineer</option>
           <option value="admin">admin</option>
         </select>
-        <input id="e_sites" placeholder="المواقع (بفواصل)"/>
-        <input id="e_depts" placeholder="الأقسام (بفواصل)"/>
       </div>
-      <div class="flex justify-end gap-2 mt-3">
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div>
+          <div class="mb-2 font-bold">المواقع المسموح بها</div>
+          <div id="e_sitesBox" class="grid grid-cols-2 gap-2 max-h-48 overflow-auto p-3 rounded border border-slate-300 bg-white"></div>
+          <input id="e_sitesExtra" class="mt-2 w-full" placeholder="إضافات يدوية (بفواصل)"/>
+        </div>
+        <div>
+          <div class="mb-2 font-bold">الأقسام المسموح بها</div>
+          <div id="e_deptsBox" class="grid grid-cols-2 gap-2 max-h-48 overflow-auto p-3 rounded border border-slate-300 bg-white"></div>
+          <input id="e_deptsExtra" class="mt-2 w-full" placeholder="إضافات يدوية (بفواصل)"/>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-4">
         <button id="saveEdit" class="px-4 py-2 rounded bg-sky-600 text-white font-bold">حفظ</button>
       </div>
     </div>
@@ -132,9 +171,8 @@ const notice=(m,t='info')=>{
   n.className='notice ' + (t==='ok'?'n-ok': t==='error'?'n-err':'n-info');
 };
 
+// ===== Guard: Admin only =====
 let currentRole = null;
-
-// حراسة: يسمح بالدخول للـ admin فقط
 onAuthStateChanged(auth, async (user)=>{
   if(!user){ location.href='login.html'; return; }
   try{
@@ -149,9 +187,44 @@ onAuthStateChanged(auth, async (user)=>{
   }
 
   notice('تم التحقق من الصلاحيات ✅','ok');
+  await loadAssetsLookups(); // اسحب المواقع/الأقسام من الأصول
   loadUsers();
 });
 
+// ===== lookups from assets =====
+let ALL_SITES = [], ALL_DEPTS = [];
+async function loadAssetsLookups(){
+  const qs = await getDocs(query(collection(db,'assets'), orderBy('site')));
+  const sites = new Set(), depts = new Set();
+  qs.docs.forEach(d=>{
+    const x=d.data();
+    if(x.site) sites.add(x.site);
+    if(x.department) depts.add(x.department);
+  });
+  ALL_SITES = [...sites].sort();
+  ALL_DEPTS = [...depts].sort();
+  renderPickers('#u_sitesBox', ALL_SITES);
+  renderPickers('#u_deptsBox', ALL_DEPTS);
+}
+
+function renderPickers(containerSel, items, selected=[]){
+  const box = $(containerSel); box.innerHTML='';
+  for(const val of items){
+    const id = `${containerSel}-${val}`.replace(/[^a-z0-9_-]/gi,'');
+    const wrap = document.createElement('label');
+    wrap.className='inline-flex items-center gap-2 px-2 py-1 rounded border bg-slate-800 border-slate-700';
+    wrap.innerHTML = `<input type="checkbox" class="accent-sky-600" id="${id}" value="${val}"><span>${val}</span>`;
+    const chk = wrap.querySelector('input');
+    if(selected.includes(val)) chk.checked = true;
+    box.appendChild(wrap);
+  }
+}
+function collectSelected(containerSel){
+  return Array.from($(containerSel).querySelectorAll('input[type="checkbox"]:checked')).map(c=>c.value);
+}
+
+// ===== Users =====
+let users = [], filtered = [];
 async function loadUsers(){
   try{
     notice('جارِ تحميل المستخدمين…');
@@ -164,26 +237,23 @@ async function loadUsers(){
     notice('فشل التحميل: ' + e.message, 'error');
   }
 }
-
-let users = [];
-let filtered = [];
-
+function rolePill(role){
+  const map={admin:'role-admin',engineer:'role-engineer',tech:'role-tech',viewer:'role-viewer'};
+  return `<span class="pill ${map[role]||'role-viewer'}">${role||'viewer'}</span>`;
+}
 function renderTable(){
   const q = ($('#q').value||'').toLowerCase().trim();
-  filtered = users.filter(u=>{
-    return !q || (String(u.name||'').toLowerCase().includes(q) || String(u.email||'').toLowerCase().includes(q));
-  });
-
+  filtered = users.filter(u=> !q || (String(u.name||'').toLowerCase().includes(q) || String(u.email||'').toLowerCase().includes(q)));
   const tb = $('#tbody'); tb.innerHTML='';
   for(const u of filtered){
     const tr = document.createElement('tr');
-    tr.className = 'border-b border-slate-800';
+    tr.className='border-b border-slate-800';
     const sites = Array.isArray(u.sites)? u.sites.join(', ') : '';
     const depts = Array.isArray(u.departments)? u.departments.join(', ') : '';
     tr.innerHTML = `
       <td class="p-3">${u.name||'—'}</td>
       <td class="p-3">${u.email||'—'}</td>
-      <td class="p-3 font-bold">${u.role||'viewer'}</td>
+      <td class="p-3">${rolePill(u.role||'viewer')}</td>
       <td class="p-3">${sites||'—'}</td>
       <td class="p-3">${depts||'—'}</td>
       <td class="p-3">
@@ -196,21 +266,26 @@ function renderTable(){
     tb.appendChild(tr);
   }
 }
-
 document.getElementById('q').addEventListener('input', renderTable);
 document.getElementById('btnRefresh').addEventListener('click', loadUsers);
 
-// حفظ مستخدم جديد/تحديث
+// ===== Create/Update user doc (top form)
 document.getElementById('btnSaveUser').addEventListener('click', async ()=>{
   const uid  = $('#u_uid').value.trim();
   const name = $('#u_name').value.trim();
   const email= $('#u_email').value.trim();
   const role = $('#u_role').value;
-  const sites= ($('#u_sites').value||'').split(',').map(s=>s.trim()).filter(Boolean);
-  const depts= ($('#u_depts').value||'').split(',').map(s=>s.trim()).filter(Boolean);
 
   if(!uid){ notice('أدخل UID','error'); return; }
   if(!email){ notice('أدخل البريد الإلكتروني','error'); return; }
+
+  // selected + extras
+  let sites = collectSelected('#u_sitesBox');
+  let depts = collectSelected('#u_deptsBox');
+  const sitesExtra = ($('#u_sitesExtra').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const deptsExtra = ($('#u_deptsExtra').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  sites = Array.from(new Set([...sites, ...sitesExtra]));
+  depts = Array.from(new Set([...depts, ...deptsExtra]));
 
   try{
     await setDoc(doc(db,'users', uid), {
@@ -223,42 +298,63 @@ document.getElementById('btnSaveUser').addEventListener('click', async ()=>{
       createdAt: serverTimestamp()
     }, { merge: true });
     notice('تم الحفظ ✅','ok');
-    // نظّف الحقول
-    ['u_uid','u_name','u_email','u_sites','u_depts'].forEach(id=> $('#'+id).value='');
+    ['u_uid','u_name','u_email','u_sitesExtra','u_deptsExtra'].forEach(id=> $('#'+id).value='');
     $('#u_role').value='viewer';
+    // فك كل الـ checkboxes
+    document.querySelectorAll('#u_sitesBox input,#u_deptsBox input').forEach(c=> c.checked=false);
     await loadUsers();
   }catch(e){
     notice('فشل الحفظ: ' + e.message, 'error');
   }
 });
 
-// فتح نافذة تعديل
+// ===== Edit modal
+const editModal = document.getElementById('editModal');
+const openEdit = ()=>{ editModal.classList.remove('hidden'); editModal.classList.add('flex'); };
+const closeEdit = ()=>{ editModal.classList.add('hidden'); editModal.classList.remove('flex'); };
+document.getElementById('closeEdit').onclick = closeEdit;
+
+let editingUID = null;
 document.addEventListener('click', (e)=>{
   const b = e.target.closest('button[data-edit]');
   if(!b) return;
   const uid = b.dataset.edit;
   const u = users.find(x=> x.id===uid);
   if(!u) return;
+  editingUID = uid;
+
+  // عبّي الحقول
   $('#e_uid').value   = uid;
   $('#e_name').value  = u.name || '';
   $('#e_email').value = u.email || '';
   $('#e_role').value  = u.role  || 'viewer';
-  $('#e_sites').value = (u.sites||[]).join(', ');
-  $('#e_depts').value = (u.departments||[]).join(', ');
+
+  // اعرض pickers بقيم مختارة
+  renderPickers('#e_sitesBox', ALL_SITES, u.sites||[]);
+  renderPickers('#e_deptsBox', ALL_DEPTS, u.departments||[]);
+  $('#e_sitesExtra').value = '';
+  $('#e_deptsExtra').value = '';
+
   openEdit();
 });
 
 document.getElementById('saveEdit').addEventListener('click', async ()=>{
-  const uid   = $('#e_uid').value.trim();
+  if(!editingUID){ return; }
   const name  = $('#e_name').value.trim();
   const email = $('#e_email').value.trim();
   const role  = $('#e_role').value;
-  const sites = ($('#e_sites').value||'').split(',').map(s=>s.trim()).filter(Boolean);
-  const depts = ($('#e_depts').value||'').split(',').map(s=>s.trim()).filter(Boolean);
-  if(!uid){ notice('لا يوجد UID','error'); return; }
+
+  let sites = collectSelected('#e_sitesBox');
+  let depts = collectSelected('#e_deptsBox');
+  const sitesExtra = ($('#e_sitesExtra').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const deptsExtra = ($('#e_deptsExtra').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  sites = Array.from(new Set([...sites, ...sitesExtra]));
+  depts = Array.from(new Set([...depts, ...deptsExtra]));
+
   if(!email){ notice('أدخل البريد','error'); return; }
+
   try{
-    await updateDoc(doc(db,'users', uid), {
+    await updateDoc(doc(db,'users', editingUID), {
       name, email, role, sites, departments: depts, updatedAt: serverTimestamp()
     });
     notice('تم التحديث ✅','ok');
@@ -268,6 +364,7 @@ document.getElementById('saveEdit').addEventListener('click', async ()=>{
   }
 });
 
+// حذف مستند مستخدم
 document.addEventListener('click', async (e)=>{
   const b = e.target.closest('button[data-del]');
   if(!b) return;
@@ -281,16 +378,6 @@ document.addEventListener('click', async (e)=>{
     notice('فشل الحذف: ' + err.message, 'error');
   }
 });
-
-// تحكم المودال
-const editModal = document.getElementById('editModal');
-const openEdit = ()=>{ editModal.classList.remove('hidden'); editModal.classList.add('flex'); };
-const closeEdit = ()=>{ editModal.classList.add('hidden'); editModal.classList.remove('flex'); };
-document.getElementById('closeEdit').onclick = closeEdit;
-
-// أخطاء عامة
-window.addEventListener('error', e=> notice('خطأ: '+(e.error?.message||e.message),'error'));
-window.addEventListener('unhandledrejection', e=> notice('خطأ: '+(e.reason?.message||e.reason),'error'));
 </script>
 </body>
 </html>
