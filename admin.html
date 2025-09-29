@@ -6,26 +6,28 @@
 <title>PM-QR – إدارة المستخدمين</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
+  /* خلفية عامة داكنة */
   body{background:#0b1220;color:#e5e7eb}
   .card{background:#111827;border:1px solid #1f2937;border-radius:16px;box-shadow:0 12px 36px rgba(0,0,0,.35)}
   .notice{position:sticky;top:0;z-index:40;text-align:center;font-weight:800}
   .n-ok{background:rgba(16,185,129,.15);border-bottom:1px solid rgba(16,185,129,.5);color:#a7f3d0}
   .n-err{background:rgba(239,68,68,.15);border-bottom:1px solid rgba(239,68,68,.5);color:#fecaca}
   .n-info{background:rgba(59,130,246,.15);border-bottom:1px solid rgba(59,130,246,.5);color:#bfdbfe}
-  input,select,textarea{background:#0b1220;border:1px solid #374151;border-radius:12px;padding:10px;color:#fff}
   table td,table th{white-space:nowrap}
   .pill{padding:.2rem .5rem;border-radius:999px;font-size:.75rem;font-weight:800}
   .role-admin{background:#fde68a;color:#78350f}
   .role-engineer{background:#bfdbfe;color:#1e3a8a}
   .role-tech{background:#bbf7d0;color:#14532d}
   .role-viewer{background:#e5e7eb;color:#111827}
-  /* مودال فاتح */
+
+  /* نافذة تعديل بخلفية فاتحة ونص داكن */
   .modal{background:#ffffff !important;color:#0f172a !important}
-  .modal input,.modal select,.modal textarea{
+  .modal input,.modal select{
     background:#f8fafc !important;color:#0f172a !important;border:1px solid #cbd5e1 !important;
     border-radius:10px;padding:10px;
   }
-  /* مكوّن الاختيار */
+
+  /* مكوّن اختيار (Picker) مع بحث + قائمة + مختارة (Chips) */
   .pick-col{border:1px solid #cbd5e1;border-radius:12px;background:#fff}
   .pick-list{max-height:220px;overflow:auto}
   .pick-item{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.45rem .6rem;border-bottom:1px dashed #e5e7eb;cursor:pointer}
@@ -37,81 +39,26 @@
 <body class="min-h-screen">
   <div id="notice" class="notice n-info w-full py-2">جارِ التحقق من الصلاحيات…</div>
 
+  <!-- شريط علوي -->
   <header class="sticky top-0 z-30 bg-slate-900/80 backdrop-blur border-b border-slate-800">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-      <div class="font-extrabold text-xl">إدارة المستخدمين</div>
+      <div class="font-extrabold text-xl flex items-center gap-2">
+        <span class="text-sky-400">👑</span> إدارة المستخدمين
+      </div>
       <div class="flex items-center gap-2">
-        <a href="index.html" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700">← الرجوع للوحة</a>
+        <a href="index.html" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 hover:opacity-90">← الرجوع للوحة</a>
       </div>
     </div>
   </header>
 
   <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
-    <!-- إضافة / تحديث مستند مستخدم -->
-    <section class="card p-4">
-      <h2 class="text-lg font-extrabold mb-3">➕ إضافة/تحديث مستخدم (users/{uid})</h2>
-      <p class="text-slate-300 text-sm mb-4">
-        يجب أن يكون المستخدم موجودًا في Authentication مسبقًا. الصق <b>UID</b> من صفحة Authentication.
-      </p>
-
-      <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
-        <input id="u_uid"  placeholder="UID" class="md:col-span-2"/>
-        <input id="u_name" placeholder="الاسم"/>
-        <input id="u_email" type="email" placeholder="البريد"/>
-        <select id="u_role">
-          <option value="viewer">viewer</option>
-          <option value="tech">tech</option>
-          <option value="engineer">engineer</option>
-          <option value="admin">admin</option>
-        </select>
-      </div>
-
-      <!-- Pickers -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        <!-- المواقع -->
-        <div>
-          <div class="mb-2 font-bold">المواقع المسموح بها</div>
-          <div class="grid grid-cols-2 gap-3">
-            <div class="pick-col">
-              <input id="u_sitesSearch" class="w-full border-0 border-b border-slate-200 rounded-none" placeholder="ابحث عن موقع…"/>
-              <div id="u_sitesList" class="pick-list"></div>
-            </div>
-            <div class="pick-col p-2">
-              <div class="text-sm text-slate-600 mb-1">المختارة:</div>
-              <div id="u_sitesChosen" class="min-h-[44px]"></div>
-              <input id="u_sitesExtra" class="mt-2 w-full" placeholder="إضافات يدوية (بفواصل)"/>
-            </div>
-          </div>
-        </div>
-        <!-- الأقسام -->
-        <div>
-          <div class="mb-2 font-bold">الأقسام المسموح بها</div>
-          <div class="grid grid-cols-2 gap-3">
-            <div class="pick-col">
-              <input id="u_deptsSearch" class="w-full border-0 border-b border-slate-200 rounded-none" placeholder="ابحث عن قسم…"/>
-              <div id="u_deptsList" class="pick-list"></div>
-            </div>
-            <div class="pick-col p-2">
-              <div class="text-sm text-slate-600 mb-1">المختارة:</div>
-              <div id="u_deptsChosen" class="min-h-[44px]"></div>
-              <input id="u_deptsExtra" class="mt-2 w-full" placeholder="إضافات يدوية (بفواصل)"/>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="flex justify-end mt-4">
-        <button id="btnSaveUser" class="px-4 py-2 rounded-lg bg-sky-600 font-bold hover:opacity-90">حفظ المستخدم</button>
-      </div>
-    </section>
-
-    <!-- قائمة المستخدمين -->
+    <!-- قائمة المستخدمين فقط -->
     <section class="card p-4">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg font-extrabold">👥 جميع المستخدمين</h2>
         <div class="flex items-center gap-2">
-          <input id="q" placeholder="بحث بالاسم أو البريد…" class="w-64"/>
-          <button id="btnRefresh" class="px-3 py-2 rounded bg-slate-700">تحديث</button>
+          <input id="q" placeholder="بحث بالاسم أو البريد…" class="w-64 px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white"/>
+          <button id="btnRefresh" class="px-3 py-2 rounded bg-slate-700 hover:opacity-90">تحديث</button>
         </div>
       </div>
 
@@ -135,18 +82,20 @@
 
   <!-- نافذة تعديل -->
   <div id="editModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center">
-    <div class="modal rounded-xl p-5 w-full max-w-4xl">
+    <div class="modal rounded-xl p-5 w-full max-w-4xl shadow-2xl">
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-lg font-bold">تعديل مستخدم</h3>
-        <button id="closeEdit" class="px-3 py-1 bg-gray-200 rounded">✕</button>
+        <button id="closeEdit" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">✕</button>
       </div>
 
-      <input id="e_uid" type="hidden"/> <!-- UID مخفي -->
+      <!-- UID مخفي (غير قابل للتعديل) -->
+      <input id="e_uid" type="hidden"/>
 
+      <!-- بيانات أساسية -->
       <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
-        <input id="e_name" placeholder="الاسم" class="md:col-span-2"/>
+        <input id="e_name"  placeholder="الاسم"  class="md:col-span-2"/>
         <input id="e_email" placeholder="البريد" class="md:col-span-2"/>
-        <select id="e_role">
+        <select id="e_role"  class="md:col-span-2">
           <option value="viewer">viewer</option>
           <option value="tech">tech</option>
           <option value="engineer">engineer</option>
@@ -154,19 +103,20 @@
         </select>
       </div>
 
+      <!-- Pickers -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
         <!-- مواقع -->
         <div>
           <div class="mb-2 font-bold">المواقع المسموح بها</div>
           <div class="grid grid-cols-2 gap-3">
             <div class="pick-col">
-              <input id="e_sitesSearch" class="w-full border-0 border-b border-slate-200 rounded-none" placeholder="ابحث عن موقع…"/>
+              <input id="e_sitesSearch" class="w-full border-0 border-b border-slate-200 rounded-none px-3 py-2" placeholder="ابحث عن موقع…"/>
               <div id="e_sitesList" class="pick-list"></div>
             </div>
             <div class="pick-col p-2">
               <div class="text-sm text-slate-600 mb-1">المختارة:</div>
               <div id="e_sitesChosen" class="min-h-[44px]"></div>
-              <input id="e_sitesExtra" class="mt-2 w-full" placeholder="إضافات يدوية (بفواصل)"/>
+              <input id="e_sitesExtra" class="mt-2 w-full px-3 py-2 border border-slate-200 rounded-lg" placeholder="إضافات يدوية (بفواصل)"/>
             </div>
           </div>
         </div>
@@ -175,29 +125,31 @@
           <div class="mb-2 font-bold">الأقسام المسموح بها</div>
           <div class="grid grid-cols-2 gap-3">
             <div class="pick-col">
-              <input id="e_deptsSearch" class="w-full border-0 border-b border-slate-200 rounded-none" placeholder="ابحث عن قسم…"/>
+              <input id="e_deptsSearch" class="w-full border-0 border-b border-slate-200 rounded-none px-3 py-2" placeholder="ابحث عن قسم…"/>
               <div id="e_deptsList" class="pick-list"></div>
             </div>
             <div class="pick-col p-2">
               <div class="text-sm text-slate-600 mb-1">المختارة:</div>
               <div id="e_deptsChosen" class="min-h-[44px]"></div>
-              <input id="e_deptsExtra" class="mt-2 w-full" placeholder="إضافات يدوية (بفواصل)"/>
+              <input id="e_deptsExtra" class="mt-2 w-full px-3 py-2 border border-slate-200 rounded-lg" placeholder="إضافات يدوية (بفواصل)"/>
             </div>
           </div>
         </div>
       </div>
 
       <div class="flex justify-end gap-2 mt-4">
-        <button id="saveEdit" class="px-4 py-2 rounded bg-sky-600 text-white font-bold">حفظ</button>
+        <button id="saveEdit" class="px-4 py-2 rounded bg-sky-600 text-white font-bold hover:opacity-90">حفظ</button>
       </div>
     </div>
   </div>
 
+<!-- ===== SCRIPTS ===== -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 import { getFirestore, collection, getDocs, setDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
+/* Firebase */
 const firebaseConfig = {
   apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
   authDomain: "pmqrtabuk.firebaseapp.com",
@@ -210,6 +162,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
+/* Helpers */
 const $ = s => document.querySelector(s);
 const notice=(m,t='info')=>{
   const n=$('#notice');
@@ -217,7 +170,7 @@ const notice=(m,t='info')=>{
   n.className='notice ' + (t==='ok'?'n-ok': t==='error'?'n-err':'n-info');
 };
 
-// ============== AUTH GUARD (admin) ==============
+/* ============ AUTH GUARD (admin only) ============ */
 let currentRole = null;
 onAuthStateChanged(auth, async (user)=>{
   if(!user){ location.href='login.html'; return; }
@@ -235,22 +188,21 @@ onAuthStateChanged(auth, async (user)=>{
   await loadUsers();
 });
 
-// ============== Lookups (from assets) ==============
+/* ============ Lookups (sites/departments) ============ */
 let ALL_SITES=[], ALL_DEPTS=[];
 async function loadAssetsLookups(){
   const qs = await getDocs(query(collection(db,'assets'), orderBy('site')));
-  const sites = new Set(), depts = new Set();
-  qs.forEach(d=>{
-    const x=d.data(); if(x.site) sites.add(x.site); if(x.department) depts.add(x.department);
+  const s=new Set(), d=new Set();
+  qs.forEach(docu=>{
+    const x=docu.data();
+    if(x.site) s.add(x.site);
+    if(x.department) d.add(x.department);
   });
-  ALL_SITES=[...sites].sort(); ALL_DEPTS=[...depts].sort();
-  buildPicker('u_sites', ALL_SITES);
-  buildPicker('u_depts', ALL_DEPTS);
+  ALL_SITES=[...s].sort(); ALL_DEPTS=[...d].sort();
 }
 
-// ============== Picker component ==============
-// أسامي العناصر المتوقعة: 
-//   search: #<key>Search, list: #<key>List, chosen: #<key>Chosen
+/* ============ Picker component ============ */
+const pickers = {};
 function buildPicker(key, items, preselected=[]){
   const inputSearch = $(`#${key}Search`);
   const listEl      = $(`#${key}List`);
@@ -281,13 +233,10 @@ function buildPicker(key, items, preselected=[]){
   inputSearch.oninput=renderList;
   renderList(); renderChosen();
 
-  // أعِد كائن لاسترجاع/ضبط القيم
   pickers[key]={ get:()=>Array.from(chosen), set:(arr)=>{ chosen.clear(); (arr||[]).forEach(v=>chosen.add(v)); renderChosen(); } };
 }
-// جميع الـ pickers
-const pickers = {};
 
-// ============== Users table ==============
+/* ============ Users table ============ */
 let users=[], filtered=[];
 async function loadUsers(){
   try{
@@ -320,8 +269,8 @@ function renderTable(){
       <td class="p-3">${depts||'—'}</td>
       <td class="p-3">
         <div class="flex gap-2">
-          <button class="px-2 py-1 rounded bg-sky-500 text-sky-950 font-bold" data-edit="${u.id}">تعديل</button>
-          <button class="px-2 py-1 rounded bg-red-600 text-white font-bold" data-del="${u.id}">حذف مستند</button>
+          <button class="px-2 py-1 rounded bg-sky-500 text-sky-950 font-bold hover:opacity-90" data-edit="${u.id}">تعديل</button>
+          <button class="px-2 py-1 rounded bg-red-600 text-white font-bold hover:opacity-90" data-del="${u.id}">حذف</button>
         </div>
       </td>
     `;
@@ -331,37 +280,7 @@ function renderTable(){
 document.getElementById('q').addEventListener('input', renderTable);
 document.getElementById('btnRefresh').addEventListener('click', loadUsers);
 
-// ============== Save (create/update) ==============
-document.getElementById('btnSaveUser').addEventListener('click', async ()=>{
-  const uid  = $('#u_uid').value.trim();
-  const name = $('#u_name').value.trim();
-  const email= $('#u_email').value.trim();
-  const role = $('#u_role').value;
-  if(!uid){ notice('أدخل UID','error'); return; }
-  if(!email){ notice('أدخل البريد الإلكتروني','error'); return; }
-
-  let sites = pickers['u_sites'].get();
-  let depts = pickers['u_depts'].get();
-  const sitesExtra = ($('#u_sitesExtra').value||'').split(',').map(s=>s.trim()).filter(Boolean);
-  const deptsExtra = ($('#u_deptsExtra').value||'').split(',').map(s=>s.trim()).filter(Boolean);
-  sites = Array.from(new Set([...sites, ...sitesExtra]));
-  depts = Array.from(new Set([...depts, ...deptsExtra]));
-
-  try{
-    await setDoc(doc(db,'users', uid), {
-      name: name || '', email, role: role||'viewer',
-      sites, departments: depts,
-      updatedAt: serverTimestamp(), createdAt: serverTimestamp()
-    }, { merge: true });
-    notice('تم الحفظ ✅','ok');
-    ['u_uid','u_name','u_email','u_sitesExtra','u_deptsExtra'].forEach(id=> $('#'+id).value='');
-    $('#u_role').value='viewer';
-    pickers['u_sites'].set([]); pickers['u_depts'].set([]);
-    await loadUsers();
-  }catch(e){ notice('فشل الحفظ: '+e.message,'error'); }
-});
-
-// ============== Edit modal ==============
+/* ============ Edit modal open ============ */
 const editModal = $('#editModal');
 const openEdit = ()=>{ editModal.classList.remove('hidden'); editModal.classList.add('flex'); };
 const closeEdit = ()=>{ editModal.classList.add('hidden'); editModal.classList.remove('flex'); };
@@ -375,17 +294,20 @@ document.addEventListener('click', (e)=>{
   const u = users.find(x=> x.id===uid);
   if(!u) return;
 
-  $('#e_uid').value = uid;
-  $('#e_name').value = u.name||'';
-  $('#e_email').value= u.email||'';
-  $('#e_role').value = u.role||'viewer';
-  // أبني Pickers على حسب lookups مع المختارة
+  $('#e_uid').value   = uid;
+  $('#e_name').value  = u.name || '';
+  $('#e_email').value = u.email||'';
+  $('#e_role').value  = u.role || 'viewer';
+
+  // ابني Pickers على حسب lookups مع المختارة
   buildPicker('e_sites', ALL_SITES, u.sites||[]);
   buildPicker('e_depts', ALL_DEPTS, u.departments||[]);
   $('#e_sitesExtra').value=''; $('#e_deptsExtra').value='';
+
   editingUID=uid; openEdit();
 });
 
+/* ============ Save edit ============ */
 document.getElementById('saveEdit').addEventListener('click', async ()=>{
   if(!editingUID) return;
   const name  = $('#e_name').value.trim();
@@ -410,12 +332,12 @@ document.getElementById('saveEdit').addEventListener('click', async ()=>{
   }catch(e){ notice('فشل التحديث: '+e.message,'error'); }
 });
 
-// حذف مستند مستخدم
+/* ============ Delete user doc (not auth) ============ */
 document.addEventListener('click', async (e)=>{
   const b = e.target.closest('button[data-del]');
   if(!b) return;
   const uid=b.dataset.del;
-  if(!confirm('سيتم حذف مستند المستخدم من Firestore (لن يحذف حساب Authentication). متابعة؟')) return;
+  if(!confirm('سيتم حذف مستند المستخدم من Firestore (لن يُحذف حساب Authentication). متابعة؟')) return;
   try{
     await deleteDoc(doc(db,'users', uid));
     notice('تم حذف المستند ✅','ok');
