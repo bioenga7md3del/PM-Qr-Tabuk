@@ -1,160 +1,134 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>PM-QR – Login</title>
-<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-  body{background:#0b1220;color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
-  .card{background:#111827;border:1px solid #1f2937;border-radius:16px;box-shadow:0 12px 36px rgba(0,0,0,.35)}
-  .notice{position:sticky;top:0;z-index:50;text-align:center;font-weight:800}
-  .n-ok{background:rgba(16,185,129,.15);border-bottom:1px solid rgba(16,185,129,.5);color:#a7f3d0}
-  .n-err{background:rgba(239,68,68,.15);border-bottom:1px solid rgba(239,68,68,.5);color:#fecaca}
-  .n-info{background:rgba(59,130,246,.15);border-bottom:1px solid rgba(59,130,246,.5);color:#bfdbfe}
-  input{background:#0b1220;border:1px solid #374151;border-radius:12px;padding:12px;color:#fff}
-  label{color:#cbd5e1;font-size:.9rem}
-  .tab{cursor:pointer;padding:.5rem 1rem;border-radius:999px;border:1px solid #334155}
-  .tab.active{background:#3b82f6;color:#e0f2fe;border-color:#3b82f6}
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Login • PM-QR</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body{background:#0b1220}
+    .card{background:#ffffff;border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+    .leftClip{clip-path: inset(0 0 0 0 round 18px 0 0 18px)}
+    .brand-img{filter: drop-shadow(0 6px 16px rgba(0,0,0,.15))}
+    .notice{position:sticky;top:0;text-align:center;font-weight:800}
+    .n-ok{background:#e8fff4;color:#065f46}
+    .n-err{background:#ffe8e8;color:#7f1d1d}
+    .n-info{background:#e8f1ff;color:#1e3a8a}
+  </style>
 </head>
-<body class="min-h-screen flex items-center justify-center px-4">
-  <div id="notice" class="notice n-info w-full py-2">مرحبًا! سجّل الدخول للمتابعة…</div>
+<body class="min-h-screen flex items-center justify-center px-4 py-8">
 
-  <div class="card w-full max-w-xl p-6">
-    <h1 class="text-2xl font-extrabold mb-4">PM-QR – تسجيل الدخول</h1>
+  <!-- إشعار أعلى -->
+  <div id="notice" class="notice n-info w-full max-w-5xl mx-auto mb-4 rounded-lg py-2 hidden">…</div>
 
-    <div class="flex items-center gap-2 mb-5">
-      <button id="tabLogin" class="tab active">تسجيل الدخول</button>
-      <button id="tabRegister" class="tab">تسجيل جديد</button>
-    </div>
-
-    <form id="formLogin" class="space-y-3">
-      <div class="grid gap-2">
-        <label>البريد الإلكتروني</label>
-        <input id="l_email" type="email" placeholder="example@domain.com" required/>
+  <main class="card w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
+    <!-- العمود الأيسر (صورة/لوجوهات) -->
+    <aside class="leftClip hidden lg:flex flex-col items-center justify-center gap-8 bg-gradient-to-br from-sky-500 to-blue-600 p-10 text-white">
+      <div class="text-center">
+        <div class="text-2xl font-extrabold">إدارة أصولك بأمان</div>
+        <div class="opacity-90">نظام الصيانة الوقائية PM-QR</div>
       </div>
-      <div class="grid gap-2">
-        <label>كلمة المرور</label>
-        <input id="l_password" type="password" placeholder="••••••••" required/>
+      <div class="flex flex-col items-center gap-6">
+        <!-- ضع مسارات الشعارات الموجودة في المستودع -->
+        <img src="TabukCluster.jpeg" alt="Tabuk Health Cluster" class="brand-img h-20 object-contain"/>
+        <img src="FGC.jpeg" alt="First Gulf Company" class="brand-img h-16 object-contain"/>
       </div>
-      <button type="submit" class="w-full py-3 bg-sky-600 rounded-xl font-bold hover:opacity-90">دخول</button>
-    </form>
+    </aside>
 
-    <form id="formRegister" class="space-y-3 hidden">
-      <div class="grid gap-2">
-        <label>الاسم</label>
-        <input id="r_name" type="text" placeholder="الاسم الكامل"/>
+    <!-- العمود الأيمن (الفورم) -->
+    <section class="p-8 md:p-12">
+      <div class="max-w-md mx-auto">
+        <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 mb-6">Welcome to IAssets</h1>
+
+        <label class="block text-slate-700 font-semibold mb-2" for="email">Email</label>
+        <input id="email" type="email" placeholder="example@domain.com"
+               class="w-full mb-4 px-4 py-3 rounded-lg border border-slate-300 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+
+        <div class="flex items-center justify-between">
+          <label class="block text-slate-700 font-semibold mb-2" for="password">Password</label>
+          <button id="btnReset" class="text-sky-600 hover:underline text-sm">Forgot Password ?</button>
+        </div>
+        <input id="password" type="password" placeholder="••••••••"
+               class="w-full mb-6 px-4 py-3 rounded-lg border border-slate-300 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+
+        <button id="btnLogin"
+                class="w-full py-3 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-bold transition">
+          Login
+        </button>
+
+        <div class="mt-8 text-center text-slate-500 text-sm">
+          © <span id="year"></span> PM-QR
+        </div>
       </div>
-      <div class="grid gap-2">
-        <label>البريد الإلكتروني</label>
-        <input id="r_email" type="email" placeholder="example@domain.com" required/>
-      </div>
-      <div class="grid gap-2">
-        <label>كلمة المرور</label>
-        <input id="r_password" type="password" placeholder="••••••••" required/>
-      </div>
-      <p class="text-sm text-slate-400">ملاحظة: الدور الافتراضي للمستخدم الجديد <b>viewer</b>. يمكنك ترقيته من Firestore لاحقًا.</p>
-      <button type="submit" class="w-full py-3 bg-emerald-600 rounded-xl font-bold hover:opacity-90">تسجيل</button>
-    </form>
-  </div>
+    </section>
+  </main>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+  <!-- Firebase + منطق الدخول -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
-  authDomain: "pmqrtabuk.firebaseapp.com",
-  projectId: "pmqrtabuk",
-  storageBucket: "pmqrtabuk.firebasestorage.app",
-  messagingSenderId: "305570616285",
-  appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
-};
+    const firebaseConfig = {
+      apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
+      authDomain: "pmqrtabuk.firebaseapp.com",
+      projectId: "pmqrtabuk",
+      storageBucket: "pmqrtabuk.firebasestorage.app",
+      messagingSenderId: "305570616285",
+      appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
+    };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
 
-const $ = s=>document.querySelector(s);
-const notice = (msg,t='info')=>{
-  const n = $('#notice'); n.textContent = msg;
-  n.className = 'notice ' + (t==='ok'?'n-ok': t==='error'?'n-err':'n-info');
-};
+    const $ = s => document.querySelector(s);
+    const notice = (msg, type='info')=>{
+      const n = $('#notice'); n.textContent = msg; n.className = 'notice ' + (type==='ok'?'n-ok':type==='error'?'n-err':'n-info');
+      n.classList.remove('hidden');
+    };
 
-// تبويب
-const tabLogin = $('#tabLogin'), tabRegister = $('#tabRegister');
-const formLogin = $('#formLogin'), formRegister = $('#formRegister');
-tabLogin.onclick = ()=>{ tabLogin.classList.add('active'); tabRegister.classList.remove('active'); formLogin.classList.remove('hidden'); formRegister.classList.add('hidden'); };
-tabRegister.onclick = ()=>{ tabRegister.classList.add('active'); tabLogin.classList.remove('active'); formRegister.classList.remove('hidden'); formLogin.classList.add('hidden'); };
-
-// لو مسجّل بالفعل → روح للداشبورد
-onAuthStateChanged(auth, async (user)=>{
-  if(user){
-    // حاول تجيب دوره وخزّنه
-    try{
-      const snap = await getDoc(doc(db,'users', user.uid));
-      const role = snap.exists() ? (snap.data().role || 'viewer') : 'viewer';
-      localStorage.setItem('pmqr_role', role);
-    }catch{}
-    location.href = 'index.html';
-  }
-});
-
-// تسجيل الدخول
-formLogin.onsubmit = async (e)=>{
-  e.preventDefault();
-  const email = $('#l_email').value.trim();
-  const pass  = $('#l_password').value;
-  try{
-    notice('جارِ تسجيل الدخول…');
-    const {user} = await signInWithEmailAndPassword(auth, email, pass);
-    // اقرأ الدور وخزّنه
-    try{
-      const snap = await getDoc(doc(db,'users', user.uid));
-      const role = snap.exists() ? (snap.data().role || 'viewer') : 'viewer';
-      localStorage.setItem('pmqr_role', role);
-    }catch{}
-    notice('تم الدخول ✅','ok');
-    location.href = 'index.html';
-  }catch(e){
-    notice('فشل تسجيل الدخول: ' + e.message, 'error');
-  }
-};
-
-// تسجيل جديد
-formRegister.onsubmit = async (e)=>{
-  e.preventDefault();
-  const name = $('#r_name').value.trim();
-  const email = $('#r_email').value.trim();
-  const pass  = $('#r_password').value;
-  if(!email || !pass){ notice('أدخل بريد وكلمة مرور', 'error'); return; }
-  try{
-    notice('جارِ إنشاء الحساب…');
-    const {user} = await createUserWithEmailAndPassword(auth, email, pass);
-    // إنشاء مستند المستخدم (role=viewer افتراضيًا)
-    await setDoc(doc(db,'users', user.uid), {
-      name: name || '',
-      email,
-      role: 'viewer',
-      sites: [],
-      departments: [],
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+    // لو المستخدم مسجل أصلاً، دخّله مباشرة
+    onAuthStateChanged(auth, (u)=>{
+      if(u) { window.location.href = 'index.html'; }
     });
-    localStorage.setItem('pmqr_role', 'viewer');
-    notice('تم إنشاء الحساب ✅','ok');
-    location.href = 'index.html';
-  }catch(e){
-    notice('فشل إنشاء الحساب: ' + e.message, 'error');
-  }
-};
 
-// أخطاء عامة
-window.addEventListener('error', e=> notice('خطأ: '+(e.error?.message||e.message),'error'));
-window.addEventListener('unhandledrejection', e=> notice('خطأ: '+(e.reason?.message||e.reason),'error'));
-</script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Login
+    $('#btnLogin').addEventListener('click', async ()=>{
+      const email = $('#email').value.trim();
+      const pass  = $('#password').value;
+      if(!email || !pass){ notice('من فضلك أدخل البريد وكلمة المرور','error'); return; }
+      try{
+        await signInWithEmailAndPassword(auth, email, pass);
+        notice('تم تسجيل الدخول ✅','ok');
+        window.location.href = 'index.html';
+      }catch(e){
+        let msg = 'فشل تسجيل الدخول';
+        if(e.code === 'auth/user-not-found') msg = 'الحساب غير موجود';
+        if(e.code === 'auth/wrong-password') msg = 'كلمة المرور غير صحيحة';
+        if(e.code === 'auth/too-many-requests') msg = 'محاولات كثيرة، حاول لاحقًا';
+        notice(msg, 'error');
+      }
+    });
+
+    // Forgot password
+    $('#btnReset').addEventListener('click', async ()=>{
+      const email = $('#email').value.trim();
+      if(!email){ notice('اكتب البريد الإلكتروني أولاً','error'); return; }
+      try{
+        await sendPasswordResetEmail(auth, email);
+        notice('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك ✅','ok');
+      }catch(e){
+        notice('تعذر إرسال رابط الاستعادة: ' + (e.message||''), 'error');
+      }
+    });
+
+    // إدخال بالـ Enter
+    ['email','password'].forEach(id=>{
+      document.getElementById(id).addEventListener('keydown', (ev)=>{
+        if(ev.key==='Enter') $('#btnLogin').click();
+      });
+    });
+  </script>
 </body>
 </html>
