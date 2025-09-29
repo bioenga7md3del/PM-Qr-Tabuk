@@ -14,19 +14,24 @@
   .n-info{background:rgba(59,130,246,.15);border-bottom:1px solid rgba(59,130,246,.5);color:#bfdbfe}
   input,select,textarea{background:#0b1220;border:1px solid #374151;border-radius:12px;padding:10px;color:#fff}
   table td,table th{white-space:nowrap}
-  @media (max-width:768px){ table{font-size:.9rem} }
-
-  /* إصلاح ألوان النافذة */
-  .modal{background:#ffffff !important;color:#0f172a !important}
-  .modal input,.modal select,.modal textarea{
-    background:#f8fafc !important;color:#0f172a !important;border:1px solid #cbd5e1 !important;
-    border-radius:10px;padding:10px;
-  }
   .pill{padding:.2rem .5rem;border-radius:999px;font-size:.75rem;font-weight:800}
   .role-admin{background:#fde68a;color:#78350f}
   .role-engineer{background:#bfdbfe;color:#1e3a8a}
   .role-tech{background:#bbf7d0;color:#14532d}
   .role-viewer{background:#e5e7eb;color:#111827}
+  /* مودال فاتح */
+  .modal{background:#ffffff !important;color:#0f172a !important}
+  .modal input,.modal select,.modal textarea{
+    background:#f8fafc !important;color:#0f172a !important;border:1px solid #cbd5e1 !important;
+    border-radius:10px;padding:10px;
+  }
+  /* مكوّن الاختيار */
+  .pick-col{border:1px solid #cbd5e1;border-radius:12px;background:#fff}
+  .pick-list{max-height:220px;overflow:auto}
+  .pick-item{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.45rem .6rem;border-bottom:1px dashed #e5e7eb;cursor:pointer}
+  .pick-item:hover{background:#f1f5f9}
+  .chip{display:inline-flex;align-items:center;gap:.35rem;background:#0ea5e9;color:#072d3b;border-radius:999px;padding:.25rem .5rem;margin:.25rem;font-weight:700}
+  .chip button{background:transparent;border:0;font-weight:900;cursor:pointer}
 </style>
 </head>
 <body class="min-h-screen">
@@ -61,17 +66,37 @@
         </select>
       </div>
 
-      <!-- اختيار المواقع والأقسام -->
+      <!-- Pickers -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <!-- المواقع -->
         <div>
           <div class="mb-2 font-bold">المواقع المسموح بها</div>
-          <div id="u_sitesBox" class="flex flex-wrap gap-2 max-h-40 overflow-auto p-3 rounded border border-slate-700 bg-slate-950"></div>
-          <input id="u_sitesExtra" class="mt-2 w-full" placeholder="إضافات يدوية (افصلها بفواصل)"/>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="pick-col">
+              <input id="u_sitesSearch" class="w-full border-0 border-b border-slate-200 rounded-none" placeholder="ابحث عن موقع…"/>
+              <div id="u_sitesList" class="pick-list"></div>
+            </div>
+            <div class="pick-col p-2">
+              <div class="text-sm text-slate-600 mb-1">المختارة:</div>
+              <div id="u_sitesChosen" class="min-h-[44px]"></div>
+              <input id="u_sitesExtra" class="mt-2 w-full" placeholder="إضافات يدوية (بفواصل)"/>
+            </div>
+          </div>
         </div>
+        <!-- الأقسام -->
         <div>
           <div class="mb-2 font-bold">الأقسام المسموح بها</div>
-          <div id="u_deptsBox" class="flex flex-wrap gap-2 max-h-40 overflow-auto p-3 rounded border border-slate-700 bg-slate-950"></div>
-          <input id="u_deptsExtra" class="mt-2 w-full" placeholder="إضافات يدوية (افصلها بفواصل)"/>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="pick-col">
+              <input id="u_deptsSearch" class="w-full border-0 border-b border-slate-200 rounded-none" placeholder="ابحث عن قسم…"/>
+              <div id="u_deptsList" class="pick-list"></div>
+            </div>
+            <div class="pick-col p-2">
+              <div class="text-sm text-slate-600 mb-1">المختارة:</div>
+              <div id="u_deptsChosen" class="min-h-[44px]"></div>
+              <input id="u_deptsExtra" class="mt-2 w-full" placeholder="إضافات يدوية (بفواصل)"/>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -110,16 +135,17 @@
 
   <!-- نافذة تعديل -->
   <div id="editModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center">
-    <div class="modal rounded-xl p-5 w-full max-w-3xl">
+    <div class="modal rounded-xl p-5 w-full max-w-4xl">
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-lg font-bold">تعديل مستخدم</h3>
         <button id="closeEdit" class="px-3 py-1 bg-gray-200 rounded">✕</button>
       </div>
 
+      <input id="e_uid" type="hidden"/> <!-- UID مخفي -->
+
       <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
-        <input id="e_uid"  placeholder="UID" class="md:col-span-2" disabled/>
-        <input id="e_name" placeholder="الاسم"/>
-        <input id="e_email" placeholder="البريد"/>
+        <input id="e_name" placeholder="الاسم" class="md:col-span-2"/>
+        <input id="e_email" placeholder="البريد" class="md:col-span-2"/>
         <select id="e_role">
           <option value="viewer">viewer</option>
           <option value="tech">tech</option>
@@ -128,16 +154,36 @@
         </select>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+        <!-- مواقع -->
         <div>
           <div class="mb-2 font-bold">المواقع المسموح بها</div>
-          <div id="e_sitesBox" class="grid grid-cols-2 gap-2 max-h-48 overflow-auto p-3 rounded border border-slate-300 bg-white"></div>
-          <input id="e_sitesExtra" class="mt-2 w-full" placeholder="إضافات يدوية (بفواصل)"/>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="pick-col">
+              <input id="e_sitesSearch" class="w-full border-0 border-b border-slate-200 rounded-none" placeholder="ابحث عن موقع…"/>
+              <div id="e_sitesList" class="pick-list"></div>
+            </div>
+            <div class="pick-col p-2">
+              <div class="text-sm text-slate-600 mb-1">المختارة:</div>
+              <div id="e_sitesChosen" class="min-h-[44px]"></div>
+              <input id="e_sitesExtra" class="mt-2 w-full" placeholder="إضافات يدوية (بفواصل)"/>
+            </div>
+          </div>
         </div>
+        <!-- أقسام -->
         <div>
           <div class="mb-2 font-bold">الأقسام المسموح بها</div>
-          <div id="e_deptsBox" class="grid grid-cols-2 gap-2 max-h-48 overflow-auto p-3 rounded border border-slate-300 bg-white"></div>
-          <input id="e_deptsExtra" class="mt-2 w-full" placeholder="إضافات يدوية (بفواصل)"/>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="pick-col">
+              <input id="e_deptsSearch" class="w-full border-0 border-b border-slate-200 rounded-none" placeholder="ابحث عن قسم…"/>
+              <div id="e_deptsList" class="pick-list"></div>
+            </div>
+            <div class="pick-col p-2">
+              <div class="text-sm text-slate-600 mb-1">المختارة:</div>
+              <div id="e_deptsChosen" class="min-h-[44px]"></div>
+              <input id="e_deptsExtra" class="mt-2 w-full" placeholder="إضافات يدوية (بفواصل)"/>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -171,7 +217,7 @@ const notice=(m,t='info')=>{
   n.className='notice ' + (t==='ok'?'n-ok': t==='error'?'n-err':'n-info');
 };
 
-// ===== Guard: Admin only =====
+// ============== AUTH GUARD (admin) ==============
 let currentRole = null;
 onAuthStateChanged(auth, async (user)=>{
   if(!user){ location.href='login.html'; return; }
@@ -179,52 +225,70 @@ onAuthStateChanged(auth, async (user)=>{
     const snap = await getDoc(doc(db,'users', user.uid));
     currentRole = snap.exists()? (snap.data().role || 'viewer') : 'viewer';
   }catch{ currentRole = 'viewer'; }
-
   if(currentRole!=='admin'){
     notice('هذه الصفحة للمشرف فقط. سيتم تحويلك للوحة…','error');
     setTimeout(()=> location.href='index.html', 1200);
     return;
   }
-
   notice('تم التحقق من الصلاحيات ✅','ok');
-  await loadAssetsLookups(); // اسحب المواقع/الأقسام من الأصول
-  loadUsers();
+  await loadAssetsLookups();
+  await loadUsers();
 });
 
-// ===== lookups from assets =====
-let ALL_SITES = [], ALL_DEPTS = [];
+// ============== Lookups (from assets) ==============
+let ALL_SITES=[], ALL_DEPTS=[];
 async function loadAssetsLookups(){
   const qs = await getDocs(query(collection(db,'assets'), orderBy('site')));
   const sites = new Set(), depts = new Set();
-  qs.docs.forEach(d=>{
-    const x=d.data();
-    if(x.site) sites.add(x.site);
-    if(x.department) depts.add(x.department);
+  qs.forEach(d=>{
+    const x=d.data(); if(x.site) sites.add(x.site); if(x.department) depts.add(x.department);
   });
-  ALL_SITES = [...sites].sort();
-  ALL_DEPTS = [...depts].sort();
-  renderPickers('#u_sitesBox', ALL_SITES);
-  renderPickers('#u_deptsBox', ALL_DEPTS);
+  ALL_SITES=[...sites].sort(); ALL_DEPTS=[...depts].sort();
+  buildPicker('u_sites', ALL_SITES);
+  buildPicker('u_depts', ALL_DEPTS);
 }
 
-function renderPickers(containerSel, items, selected=[]){
-  const box = $(containerSel); box.innerHTML='';
-  for(const val of items){
-    const id = `${containerSel}-${val}`.replace(/[^a-z0-9_-]/gi,'');
-    const wrap = document.createElement('label');
-    wrap.className='inline-flex items-center gap-2 px-2 py-1 rounded border bg-slate-800 border-slate-700';
-    wrap.innerHTML = `<input type="checkbox" class="accent-sky-600" id="${id}" value="${val}"><span>${val}</span>`;
-    const chk = wrap.querySelector('input');
-    if(selected.includes(val)) chk.checked = true;
-    box.appendChild(wrap);
+// ============== Picker component ==============
+// أسامي العناصر المتوقعة: 
+//   search: #<key>Search, list: #<key>List, chosen: #<key>Chosen
+function buildPicker(key, items, preselected=[]){
+  const inputSearch = $(`#${key}Search`);
+  const listEl      = $(`#${key}List`);
+  const chosenEl    = $(`#${key}Chosen`);
+  const chosen = new Set(preselected);
+
+  function renderList(){
+    const q=(inputSearch.value||'').toLowerCase().trim();
+    listEl.innerHTML='';
+    items.filter(v=>!q || v.toLowerCase().includes(q)).forEach(val=>{
+      const div=document.createElement('div');
+      div.className='pick-item';
+      div.innerHTML=`<span>${val}</span><span class="text-slate-400">+</span>`;
+      div.onclick=()=>{ if(!chosen.has(val)){ chosen.add(val); renderChosen(); } };
+      listEl.appendChild(div);
+    });
   }
-}
-function collectSelected(containerSel){
-  return Array.from($(containerSel).querySelectorAll('input[type="checkbox"]:checked')).map(c=>c.value);
-}
+  function renderChosen(){
+    chosenEl.innerHTML='';
+    Array.from(chosen).sort().forEach(val=>{
+      const chip=document.createElement('span');
+      chip.className='chip';
+      chip.innerHTML=`<span>${val}</span><button title="إزالة">✕</button>`;
+      chip.querySelector('button').onclick=()=>{ chosen.delete(val); renderChosen(); };
+      chosenEl.appendChild(chip);
+    });
+  }
+  inputSearch.oninput=renderList;
+  renderList(); renderChosen();
 
-// ===== Users =====
-let users = [], filtered = [];
+  // أعِد كائن لاسترجاع/ضبط القيم
+  pickers[key]={ get:()=>Array.from(chosen), set:(arr)=>{ chosen.clear(); (arr||[]).forEach(v=>chosen.add(v)); renderChosen(); } };
+}
+// جميع الـ pickers
+const pickers = {};
+
+// ============== Users table ==============
+let users=[], filtered=[];
 async function loadUsers(){
   try{
     notice('جارِ تحميل المستخدمين…');
@@ -233,9 +297,7 @@ async function loadUsers(){
     filtered = users.slice();
     renderTable();
     notice('تم التحميل ✅','ok');
-  }catch(e){
-    notice('فشل التحميل: ' + e.message, 'error');
-  }
+  }catch(e){ notice('فشل التحميل: '+e.message,'error'); }
 }
 function rolePill(role){
   const map={admin:'role-admin',engineer:'role-engineer',tech:'role-tech',viewer:'role-viewer'};
@@ -269,19 +331,17 @@ function renderTable(){
 document.getElementById('q').addEventListener('input', renderTable);
 document.getElementById('btnRefresh').addEventListener('click', loadUsers);
 
-// ===== Create/Update user doc (top form)
+// ============== Save (create/update) ==============
 document.getElementById('btnSaveUser').addEventListener('click', async ()=>{
   const uid  = $('#u_uid').value.trim();
   const name = $('#u_name').value.trim();
   const email= $('#u_email').value.trim();
   const role = $('#u_role').value;
-
   if(!uid){ notice('أدخل UID','error'); return; }
   if(!email){ notice('أدخل البريد الإلكتروني','error'); return; }
 
-  // selected + extras
-  let sites = collectSelected('#u_sitesBox');
-  let depts = collectSelected('#u_deptsBox');
+  let sites = pickers['u_sites'].get();
+  let depts = pickers['u_depts'].get();
   const sitesExtra = ($('#u_sitesExtra').value||'').split(',').map(s=>s.trim()).filter(Boolean);
   const deptsExtra = ($('#u_deptsExtra').value||'').split(',').map(s=>s.trim()).filter(Boolean);
   sites = Array.from(new Set([...sites, ...sitesExtra]));
@@ -289,63 +349,51 @@ document.getElementById('btnSaveUser').addEventListener('click', async ()=>{
 
   try{
     await setDoc(doc(db,'users', uid), {
-      name: name || '',
-      email,
-      role: role || 'viewer',
-      sites,
-      departments: depts,
-      updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp()
+      name: name || '', email, role: role||'viewer',
+      sites, departments: depts,
+      updatedAt: serverTimestamp(), createdAt: serverTimestamp()
     }, { merge: true });
     notice('تم الحفظ ✅','ok');
     ['u_uid','u_name','u_email','u_sitesExtra','u_deptsExtra'].forEach(id=> $('#'+id).value='');
     $('#u_role').value='viewer';
-    // فك كل الـ checkboxes
-    document.querySelectorAll('#u_sitesBox input,#u_deptsBox input').forEach(c=> c.checked=false);
+    pickers['u_sites'].set([]); pickers['u_depts'].set([]);
     await loadUsers();
-  }catch(e){
-    notice('فشل الحفظ: ' + e.message, 'error');
-  }
+  }catch(e){ notice('فشل الحفظ: '+e.message,'error'); }
 });
 
-// ===== Edit modal
-const editModal = document.getElementById('editModal');
+// ============== Edit modal ==============
+const editModal = $('#editModal');
 const openEdit = ()=>{ editModal.classList.remove('hidden'); editModal.classList.add('flex'); };
 const closeEdit = ()=>{ editModal.classList.add('hidden'); editModal.classList.remove('flex'); };
 document.getElementById('closeEdit').onclick = closeEdit;
 
-let editingUID = null;
+let editingUID=null;
 document.addEventListener('click', (e)=>{
   const b = e.target.closest('button[data-edit]');
   if(!b) return;
-  const uid = b.dataset.edit;
+  const uid=b.dataset.edit;
   const u = users.find(x=> x.id===uid);
   if(!u) return;
-  editingUID = uid;
 
-  // عبّي الحقول
-  $('#e_uid').value   = uid;
-  $('#e_name').value  = u.name || '';
-  $('#e_email').value = u.email || '';
-  $('#e_role').value  = u.role  || 'viewer';
-
-  // اعرض pickers بقيم مختارة
-  renderPickers('#e_sitesBox', ALL_SITES, u.sites||[]);
-  renderPickers('#e_deptsBox', ALL_DEPTS, u.departments||[]);
-  $('#e_sitesExtra').value = '';
-  $('#e_deptsExtra').value = '';
-
-  openEdit();
+  $('#e_uid').value = uid;
+  $('#e_name').value = u.name||'';
+  $('#e_email').value= u.email||'';
+  $('#e_role').value = u.role||'viewer';
+  // أبني Pickers على حسب lookups مع المختارة
+  buildPicker('e_sites', ALL_SITES, u.sites||[]);
+  buildPicker('e_depts', ALL_DEPTS, u.departments||[]);
+  $('#e_sitesExtra').value=''; $('#e_deptsExtra').value='';
+  editingUID=uid; openEdit();
 });
 
 document.getElementById('saveEdit').addEventListener('click', async ()=>{
-  if(!editingUID){ return; }
+  if(!editingUID) return;
   const name  = $('#e_name').value.trim();
   const email = $('#e_email').value.trim();
   const role  = $('#e_role').value;
 
-  let sites = collectSelected('#e_sitesBox');
-  let depts = collectSelected('#e_deptsBox');
+  let sites = pickers['e_sites'].get();
+  let depts = pickers['e_depts'].get();
   const sitesExtra = ($('#e_sitesExtra').value||'').split(',').map(s=>s.trim()).filter(Boolean);
   const deptsExtra = ($('#e_deptsExtra').value||'').split(',').map(s=>s.trim()).filter(Boolean);
   sites = Array.from(new Set([...sites, ...sitesExtra]));
@@ -359,24 +407,20 @@ document.getElementById('saveEdit').addEventListener('click', async ()=>{
     });
     notice('تم التحديث ✅','ok');
     closeEdit(); await loadUsers();
-  }catch(e){
-    notice('فشل التحديث: '+ e.message, 'error');
-  }
+  }catch(e){ notice('فشل التحديث: '+e.message,'error'); }
 });
 
 // حذف مستند مستخدم
 document.addEventListener('click', async (e)=>{
   const b = e.target.closest('button[data-del]');
   if(!b) return;
-  const uid = b.dataset.del;
+  const uid=b.dataset.del;
   if(!confirm('سيتم حذف مستند المستخدم من Firestore (لن يحذف حساب Authentication). متابعة؟')) return;
   try{
     await deleteDoc(doc(db,'users', uid));
     notice('تم حذف المستند ✅','ok');
     await loadUsers();
-  }catch(err){
-    notice('فشل الحذف: ' + err.message, 'error');
-  }
+  }catch(err){ notice('فشل الحذف: '+err.message,'error'); }
 });
 </script>
 </body>
