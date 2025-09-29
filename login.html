@@ -29,7 +29,7 @@
         <div class="mt-2 text-base opacity-90 font-semibold">إدارة الصيانة — قسم الأجهزة الطبية</div>
       </div>
       <div class="flex flex-col items-center gap-6">
-        <!-- حدث المسارات لو حطيت الشعارات في مجلد آخر -->
+        <!-- عدّل المسارات لو كانت الصور في مجلد آخر -->
         <img src="TabukCluster.jpeg" alt="Tabuk Health Cluster" class="brand-img h-20 object-contain"/>
         <img src="FGC.jpeg" alt="First Gulf Company" class="brand-img h-16 object-contain"/>
       </div>
@@ -97,11 +97,16 @@
   <!-- Firebase + منطق الولوج/التسجيل -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+    /* اختياري: فعّل App Check لو مفعل Enforcement عندك
+    import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app-check.js";
+    */
     import {
       getAuth, signInWithEmailAndPassword, sendPasswordResetEmail,
       onAuthStateChanged, createUserWithEmailAndPassword, updateProfile
     } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-    import { getFirestore, setDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+    import {
+      getFirestore, setDoc, doc, serverTimestamp, getDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
@@ -113,6 +118,14 @@
     };
 
     const app  = initializeApp(firebaseConfig);
+
+    /* اختياري: فعّل هذا لو App Check مفعل عندك
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider('YOUR_RECAPTCHA_SITE_KEY'),
+      isTokenAutoRefreshEnabled: true,
+    });
+    */
+
     const auth = getAuth(app);
     const db   = getFirestore(app);
 
@@ -159,7 +172,7 @@
         if(e.code==='auth/user-not-found') msg='الحساب غير موجود';
         if(e.code==='auth/wrong-password') msg='كلمة المرور غير صحيحة';
         if(e.code==='auth/too-many-requests') msg='محاولات كثيرة، حاول لاحقًا';
-        notice(msg,'error');
+        notice(`${msg} [${e.code||'no-code'}]`,'error');
         console.error(e);
       }
     });
@@ -174,7 +187,7 @@
       }catch(e){ notice('تعذر إرسال رابط الاستعادة: '+(e.message||''),'error'); }
     });
 
-    // ===== Signup (مع ضمان إنشاء مستند المستخدم في Firestore) =====
+    // ===== Signup (إنشاء مستخدم + مستند Firestore مع تأكيد و رسالة واضحة) =====
     $('#btnSignup').addEventListener('click', async ()=>{
       const name  = $('#s_name').value.trim();
       const email = $('#s_email').value.trim();
@@ -182,19 +195,22 @@
       if(!name || !email || !pass){ notice('أكمل بيانات التسجيل','error'); return; }
 
       try{
+        // 1) إنشاء الحساب
         const cred = await createUserWithEmailAndPassword(auth, email, pass);
         await updateProfile(cred.user, { displayName: name });
-        await cred.user.getIdToken(true); // تأكيد التوكن
 
-        // كتابة مستند المستخدم مع إعادة محاولة
+        // 2) تأكيد جاهزية التوكن
+        await cred.user.getIdToken(true);
+
+        // 3) كتابة مستند المستخدم في users/{uid} مع إعادة محاولة
         const writeUserDoc = async (retries=2)=>{
           try{
             await setDoc(doc(db,'users', cred.user.uid), {
               name, email, role:'viewer', sites:[], departments:[], createdAt: serverTimestamp()
             }, { merge:true });
           }catch(e){
-            if((e.code==='permission-denied'||e.code==='unavailable') && retries>0){
-              await new Promise(r=>setTimeout(r,600));
+            if((e.code==='permission-denied' || e.code==='unavailable') && retries>0){
+              await new Promise(r=>setTimeout(r,700));
               await cred.user.getIdToken(true);
               return writeUserDoc(retries-1);
             }
@@ -203,15 +219,27 @@
         };
         await writeUserDoc();
 
-        notice('تم إنشاء الحساب وتسجيل الدخول ✅','ok');
-        window.location.href='index.html';
+        // 4) تأكيد فعلي: اقرأ المستند للتأكد أنه موجود
+        let createdInDB = false;
+        try{
+          const snap = await getDoc(doc(db,'users', cred.user.uid));
+          createdInDB = snap.exists();
+        }catch(_) { createdInDB = false; }
+
+        if(createdInDB){
+          notice('تم إنشاء الحساب في Authentication ✅ وتم إنشاء مستند المستخدم في قاعدة البيانات ✅','ok');
+          // توجيه للوحة
+          window.location.href='index.html';
+        }else{
+          notice('تم إنشاء الحساب في Authentication ✅ لكن لم يتم إنشاء مستند المستخدم في قاعدة البيانات ❌','error');
+        }
       }catch(e){
         let msg='تعذر إنشاء الحساب';
         if(e.code==='auth/email-already-in-use') msg='البريد مستخدم بالفعل';
         if(e.code==='auth/weak-password')       msg='كلمة المرور ضعيفة';
-        if(e.code==='permission-denied')        msg='قواعد Firestore تمنع إنشاء المستخدم';
-        notice(msg+(e.code?` (${e.code})`:''),'error');
-        console.error(e);
+        if(e.code==='permission-denied')        msg='رفض Firestore (تحقّق من App Check والقواعد)';
+        notice(`${msg} [${e.code||'no-code'}]`,'error');
+        console.error('Signup error:', e);
       }
     });
 
