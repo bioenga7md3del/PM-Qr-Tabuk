@@ -1,896 +1,513 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>PM-QR Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    .status-pill{ padding:.25rem .5rem; border-radius:999px; font-size:.75rem; font-weight:800 }
-    .pill-ok{ background:#dcfce7; color:#166534 }
-    .pill-warn{ background:#fef9c3; color:#854d0e }
-    .pill-bad{ background:#fee2e2; color:#991b1b }
-    @media print { .no-print{ display:none !important } }
-
-    /* تلوين الصفوف حسب الحالة (ساري حتى Next + شهر / منتهي بعد ذلك) */
-    .row-active { background:#ecfdf5 }
-    .row-over   { background:#fee2e2 }
-    .row-hover:hover { filter:brightness(.98) }
-
-    /* نص الجدول داكن وواضح */
-    #tbody tr, #tbody tr.row-active, #tbody tr.row-over { color:#0f172a; }
-
-    /* مودال فاتح */
-    .modal{background:#ffffff !important;color:#0f172a !important}
-    .modal input,.modal select{
-      background:#f8fafc !important;color:#0f172a !important;border:1px solid #cbd5e1 !important;
-      border-radius:10px;padding:10px;
-    }
-
-    /* مكوّن اختيار (Picker) بسيط للفرق */
-    .pick-col{border:1px solid #cbd5e1;border-radius:12px;background:#fff}
-    .pick-list{max-height:220px;overflow:auto}
-    .pick-item{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.45rem .6rem;border-bottom:1px dashed #e5e7eb;cursor:pointer}
-    .pick-item:hover{background:#f1f5f9}
-    .chip{display:inline-flex;align-items:center;gap:.35rem;background:#0ea5e9;color:#072d3b;border-radius:999px;padding:.25rem .5rem;margin:.25rem;font-weight:700}
-    .chip button{background:transparent;border:0;font-weight:900;cursor:pointer}
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>PPM TABUK • Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root{ --bg:#0b1220; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --ok:#10b981; --err:#ef4444; --info:#3b82f6; }
+  body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  .card{background:var(--card);border:1px solid #1f2937;border-radius:16px;box-shadow:0 12px 36px rgba(0,0,0,.35)}
+  .notice{position:sticky;top:0;z-index:50;text-align:center;font-weight:800}
+  .n-ok{background:rgba(16,185,129,.15);border-bottom:1px solid rgba(16,185,129,.5);color:#a7f3d0}
+  .n-err{background:rgba(239,68,68,.15);border-bottom:1px solid rgba(239,68,68,.5);color:#fecaca}
+  .n-info{background:rgba(59,130,246,.15);border-bottom:1px solid rgba(59,130,246,.5);color:#bfdbfe}
+  .btn{padding:.6rem .9rem;border-radius:10px;font-weight:700}
+  .btn-sky{background:#0ea5e9;color:#06243b} .btn-emerald{background:#10b981;color:#083344}
+  .btn-red{background:#ef4444;color:#fff} .btn-slate{background:#334155;color:#e2e8f0}
+  .badge{padding:.2rem .5rem;border-radius:999px;font-weight:800;font-size:.75rem}
+  .badge-ok{background:#bbf7d0;color:#065f46}
+  .badge-warn{background:#fde68a;color:#78350f}
+  .badge-late{background:#fecaca;color:#7f1d1d}
+  .tableFix{overflow:auto}
+  .tbl th,.tbl td{white-space:nowrap}
+  .accordion{cursor:pointer}
+  .disabled{opacity:.5;pointer-events:none}
+</style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
-  <!-- Notice -->
-  <div id="notice" class="no-print text-center py-2 font-bold bg-sky-900/40 border-b border-sky-700">
-    جارِ التحقق من الجلسة…
-  </div>
+<body>
+<!-- إشعار عام -->
+<div id="notice" class="notice n-info">جارِ الاتصال…</div>
 
-  <!-- Topbar -->
-  <header class="no-print sticky top-0 z-40 bg-slate-900/80 backdrop-blur border-b border-slate-800">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="text-xl font-extrabold">لوحة PM-QR</div>
-        <span id="userEmail" class="hidden md:inline text-slate-300 text-sm"></span>
-        <span id="userRole" class="hidden md:inline text-slate-400 text-xs"></span>
-      </div>
-      <div class="flex items-center gap-2">
-        <a href="import.html" class="px-3 py-2 rounded-lg bg-emerald-500 text-emerald-950 font-bold hover:opacity-90" id="linkImport">📂 رفع ملف إكسل</a>
-        <button id="openAddBtn" class="px-3 py-2 rounded-lg bg-sky-500 text-sky-950 font-bold hover:opacity-90">➕ إضافة جهاز</button>
-        <button id="btnDeptQR" class="px-3 py-2 rounded bg-yellow-500 text-yellow-950 font-bold">🔳 طباعة QR للقسم الحالي</button>
-        <button id="btnBulkDelete" class="px-3 py-2 rounded bg-red-600 text-white font-bold">🗑️ مسح الأجهزة المحددة</button>
-        <button id="btnTeam" class="px-3 py-2 rounded-lg bg-indigo-500 text-white font-bold" style="display:none">🧑‍🔧 إدارة الفريق</button>
-        <button id="btnAdmin" class="px-3 py-2 rounded-lg bg-purple-500 text-purple-950 font-bold hover:opacity-90" style="display:none">👑 إدارة المستخدمين</button>
-        <button id="signOutBtn" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700">تسجيل الخروج</button>
-      </div>
+<header class="sticky top-0 z-40 bg-slate-900/70 backdrop-blur border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-3 md:px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <img src="TabukCluster.jpeg" class="h-8 hidden sm:block rounded" alt="Tabuk"/>
+      <img src="FGC.jpeg" class="h-7 hidden sm:block rounded" alt="FGC"/>
+      <div class="font-extrabold text-lg md:text-xl">PPM TABUK</div>
+      <span class="text-sm text-slate-400 hidden md:inline">• لوحة التحكم</span>
     </div>
-  </header>
-
-  <main class="max-w-7xl mx-auto px-4 py-6">
-    <!-- KPIs -->
-    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-slate-400">إجمالي الأجهزة</div>
-        <div id="kpi_total" class="text-3xl font-extrabold">—</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-slate-400">المستحقة هذا الشهر</div>
-        <div id="kpi_due" class="text-3xl font-extrabold">—</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-slate-400">متأخرة</div>
-        <div id="kpi_over" class="text-3xl font-extrabold">—</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-slate-400">خلال 30 يومًا</div>
-        <div id="kpi_30" class="text-3xl font-extrabold">—</div>
-      </div>
-    </section>
-
-    <!-- Filters -->
-    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-3 no-print">
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
-        <input id="q" class="px-3 py-2 rounded bg-slate-950 border border-slate-800" placeholder="بحث بالـ Control أو الفني…"/>
-        <select id="filter_site" class="px-3 py-2 rounded bg-slate-950 border border-slate-800">
-          <option value="">كل المواقع</option>
-        </select>
-        <select id="filter_dept" class="px-3 py-2 rounded bg-slate-950 border border-slate-800">
-          <option value="">كل الأقسام</option>
-        </select>
-        <select id="filter_status" class="px-3 py-2 rounded bg-slate-950 border border-slate-800">
-          <option value="">كل الحالات</option>
-          <option value="ok">محدّث</option>
-          <option value="due">مستحق هذا الشهر</option>
-          <option value="over">متأخر</option>
-          <option value="soon">خلال 30 يومًا</option>
-        </select>
-        <div class="flex gap-2">
-          <button id="refreshBtn" class="px-3 py-2 bg-slate-700 rounded">تحديث</button>
-          <button id="clearFilters" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded">مسح</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Legend -->
-    <div class="no-print flex flex-wrap items-center justify-between gap-2 mb-3">
-      <div class="flex items-center gap-4 text-slate-300 text-sm">
-        <span class="inline-flex items-center gap-2"><i class="inline-block w-4 h-4 rounded-sm" style="background:#ecfdf5"></i> ساري (حتى Next + شهر)</span>
-        <span class="inline-flex items-center gap-2"><i class="inline-block w-4 h-4 rounded-sm" style="background:#fee2e2"></i> منتهي (بعد Next + شهر)</span>
-      </div>
-    </div>
-
-    <!-- Table -->
-    <section class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="min-w-full text-sm">
-          <thead class="bg-slate-800 text-slate-200">
-            <tr>
-              <th class="p-3 text-center w-10"><input id="chkAll" type="checkbox" class="w-4 h-4"></th>
-              <th class="p-3 text-right">Control</th>
-              <th class="p-3 text-right">Site</th>
-              <th class="p-3 text-right">Department</th>
-              <th class="p-3 text-right">Location</th>
-              <th class="p-3 text-right">PM Date</th>
-              <th class="p-3 text-right">Next PM</th>
-              <th class="p-3 text-right">Tech</th>
-              <th class="p-3 text-right">الحالة</th>
-              <th class="p-3 text-right">أدوات</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-      <div class="no-print flex items-center justify-between p-3 border-t border-slate-800">
-        <div id="pageInfo" class="text-slate-400 text-sm">—</div>
-        <div class="flex gap-2">
-          <button id="prev" class="px-3 py-1.5 rounded bg-slate-800 border border-slate-700">السابق</button>
-          <button id="next" class="px-3 py-1.5 rounded bg-slate-800 border border-slate-700">التالي</button>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Add Modal -->
-  <div id="addModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center no-print">
-    <div class="modal rounded-lg shadow-xl w-full max-w-2xl p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-bold">إضافة جهاز جديد</h2>
-        <button id="closeAdd" class="px-3 py-1 rounded bg-gray-200">✕</button>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-        <input id="a_control" placeholder="Control Number" class="w-full"/>
-        <input id="a_site" placeholder="الموقع (المستشفى)" class="w-full" list="sitesList"/>
-        <input id="a_dept" placeholder="القسم" class="w-full" list="deptsList"/>
-        <input id="a_loc" placeholder="الوصف التفصيلي (Location)" class="w-full"/>
-        <input id="a_tech" placeholder="الفني القائم بالصيانة" class="w-full"/>
-        <input id="a_pm" type="date" class="w-full"/>
-      </div>
-      <div class="flex justify-end gap-2">
-        <button id="saveAdd" class="px-4 py-2 rounded bg-sky-600 text-white font-bold">حفظ</button>
-      </div>
+    <div class="flex items-center gap-2">
+      <a href="qr.html" class="btn btn-sky">صفحة QR</a>
+      <a href="admin.html" id="btnAdmin" class="btn btn-slate hidden">إدارة المستخدمين</a>
+      <button id="btnLogout" class="btn btn-red">خروج</button>
     </div>
   </div>
+</header>
 
-  <!-- Edit Modal -->
-  <div id="editModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center no-print">
-    <div class="modal rounded-lg shadow-xl w-full max-w-2xl p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-bold">تعديل جهاز</h2>
-        <button id="closeEdit" class="px-3 py-1 rounded bg-gray-200">✕</button>
+<main class="max-w-7xl mx-auto p-3 md:p-6 space-y-6">
+
+  <!-- الداشبورد (مُرتبط بالفلاتر) -->
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="card p-4">
+      <div class="text-sm text-slate-400">إجمالي (بعد الفلترة)</div>
+      <div id="k_total" class="text-2xl font-extrabold">0</div>
+    </div>
+    <div class="card p-4">
+      <div class="text-sm text-slate-400">تم هذا الشهر</div>
+      <div id="k_thisMonth" class="text-2xl font-extrabold">0</div>
+    </div>
+    <div class="card p-4">
+      <div class="text-sm text-slate-400">مستحق خلال 30 يوم</div>
+      <div id="k_dueSoon" class="text-2xl font-extrabold">0</div>
+    </div>
+    <div class="card p-4">
+      <div class="text-sm text-slate-400">متأخر (+30 بعد Next)</div>
+      <div id="k_overdue" class="text-2xl font-extrabold">0</div>
+    </div>
+  </section>
+
+  <!-- الرسوم البيانية -->
+  <section class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+    <div class="card p-4">
+      <div class="mb-2 font-bold">توزيع الحالة (بعد الفلترة)</div>
+      <canvas id="chStatus" height="180"></canvas>
+    </div>
+    <div class="card p-4">
+      <div class="mb-2 font-bold">عدد PM حسب الشهر (آخر 6 أشهر)</div>
+      <canvas id="chMonthly" height="180"></canvas>
+    </div>
+  </section>
+
+  <!-- فلاتر + أدوات -->
+  <section class="card p-4 space-y-3">
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-2">
+      <input id="search" placeholder="بحث (Control/Tech)…" class="px-3 py-2 rounded bg-slate-900 border border-slate-700"/>
+      <select id="f_site" class="px-3 py-2 rounded bg-slate-900 border border-slate-700">
+        <option value="">كل المواقع</option>
+      </select>
+      <select id="f_dept" class="px-3 py-2 rounded bg-slate-900 border border-slate-700">
+        <option value="">كل الأقسام</option>
+      </select>
+      <select id="f_state" class="px-3 py-2 rounded bg-slate-900 border border-slate-700">
+        <option value="">كل الحالات</option>
+        <option value="active">ساري</option>
+        <option value="dueSoon">خلال 30 يوم</option>
+        <option value="overdue">منتهي</option>
+      </select>
+      <button id="btnApply" class="btn btn-sky">تطبيق الفلاتر</button>
+      <button id="btnClear" class="btn btn-slate">مسح الفلاتر</button>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <button id="btnAddToggle" class="btn btn-emerald">➕ إضافة جهاز</button>
+      <button id="btnBulkDelete" class="btn btn-red disabled" title="احذف المحدد">حذف جماعي</button>
+      <a href="qr.html" class="btn btn-sky">صفحة QR</a>
+    </div>
+
+    <!-- إضافة جهاز (لوحة منسدلة) -->
+    <div id="addPanel" class="hidden border border-slate-700 rounded-lg p-3">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+        <input id="a_control" placeholder="Control Number" class="px-3 py-2 rounded bg-slate-900 border border-slate-700"/>
+        <select id="a_site" class="px-3 py-2 rounded bg-slate-900 border border-slate-700"><option value="">اختر الموقع…</option></select>
+        <select id="a_dept" class="px-3 py-2 rounded bg-slate-900 border border-slate-700"><option value="">اختر القسم…</option></select>
+        <input id="a_loc" placeholder="Location (اختياري)" class="px-3 py-2 rounded bg-slate-900 border border-slate-700"/>
+        <input id="a_tech" placeholder="Technician" class="px-3 py-2 rounded bg-slate-900 border border-slate-700"/>
+        <input id="a_pm" type="date" class="px-3 py-2 rounded bg-slate-900 border border-slate-700"/>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-        <input id="m_control" placeholder="Control Number" class="w-full"/>
-        <input id="m_site" placeholder="الموقع (المستشفى)" class="w-full" list="sitesList"/>
-        <input id="m_dept" placeholder="القسم" class="w-full" list="deptsList"/>
-        <input id="m_loc" placeholder="الوصف التفصيلي (Location)" class="w-full"/>
-        <input id="m_tech" placeholder="الفني القائم بالصيانة" class="w-full"/>
-        <input id="m_pm" type="date" class="w-full"/>
-      </div>
-      <div class="flex justify-end gap-2">
-        <button id="saveEdit" class="px-4 py-2 rounded bg-sky-600 text-white font-bold">حفظ</button>
+      <div class="flex gap-2 mt-2">
+        <button id="btnSaveAsset" class="btn btn-emerald">حفظ</button>
+        <button id="btnCancelAdd" class="btn btn-slate">إغلاق</button>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- Team Modal (للأدمن والمهندس) -->
-  <div id="teamModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center no-print">
-    <div class="modal rounded-xl p-5 w-full max-w-4xl shadow-2xl">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-lg font-bold">إدارة الفريق</h3>
-        <button id="closeTeam" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">✕</button>
-      </div>
+  <!-- الجدول -->
+  <section class="card p-3">
+    <div class="tableFix">
+      <table class="tbl min-w-full text-sm">
+        <thead class="bg-slate-800 text-slate-200">
+          <tr>
+            <th class="p-2"><input type="checkbox" id="chkAll"/></th>
+            <th class="p-2">Control</th>
+            <th class="p-2">Site</th>
+            <th class="p-2">Department</th>
+            <th class="p-2">PM Date</th>
+            <th class="p-2">Next</th>
+            <th class="p-2">Tech</th>
+            <th class="p-2">حالة</th>
+            <th class="p-2">أدوات</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <div class="mb-2 font-bold">الفنيون</div>
-          <div class="pick-col p-2">
-            <input id="t_search" class="w-full border-0 border-b border-slate-200 rounded-none px-3 py-2" placeholder="ابحث باسم/بريد…"/>
-            <div id="t_list" class="pick-list"></div>
-          </div>
-        </div>
-        <div>
-          <div class="mb-2 font-bold">تعيين للأقسام (داخل الموقع المسموح)</div>
-          <div class="grid grid-cols-2 gap-3">
-            <div class="pick-col">
-              <input id="t_deptSearch" class="w-full border-0 border-b border-slate-200 rounded-none px-3 py-2" placeholder="ابحث عن قسم…"/>
-              <div id="t_deptList" class="pick-list"></div>
-            </div>
-            <div class="pick-col p-2">
-              <div class="text-sm text-slate-600 mb-1">المختارة:</div>
-              <div id="t_deptChosen" class="min-h-[44px]"></div>
-              <input id="t_deptExtra" class="mt-2 w-full px-3 py-2 border border-slate-200 rounded-lg" placeholder="إضافات يدوية (بفواصل)"/>
-            </div>
-          </div>
-          <div class="flex justify-end mt-3">
-            <button id="t_save" class="px-4 py-2 rounded bg-indigo-600 text-white font-bold hover:opacity-90" disabled>حفظ تعيينات الفني</button>
-          </div>
-        </div>
-      </div>
+</main>
+
+<!-- نافذة تعديل (تم عمل الصيانة) -->
+<div id="editModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center">
+  <div class="bg-white text-slate-900 rounded-xl p-5 w-full max-w-md shadow-2xl">
+    <h3 class="text-lg font-bold mb-3">تحديث الصيانة الوقائية</h3>
+    <input id="e_id" type="hidden"/>
+    <div class="space-y-2">
+      <div><b>Control:</b> <span id="e_control">—</span></div>
+      <label class="block text-sm font-semibold" for="e_pm">تاريخ الصيانة الجديدة</label>
+      <input id="e_pm" type="date" class="w-full px-3 py-2 rounded border border-slate-300 bg-slate-50"/>
+    </div>
+    <div class="flex justify-end gap-2 mt-4">
+      <button id="btnEditSave" class="px-4 py-2 rounded bg-emerald-500 text-white font-bold">حفظ</button>
+      <button id="btnEditClose" class="px-4 py-2 rounded bg-slate-200">إغلاق</button>
     </div>
   </div>
+</div>
 
-  <!-- datalist -->
-  <datalist id="sitesList"></datalist>
-  <datalist id="deptsList"></datalist>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+import {
+  getFirestore, collection, query, orderBy, getDocs, setDoc, doc, serverTimestamp,
+  getDoc, updateDoc, deleteDoc, where
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
-  <!-- Firebase + App -->
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js';
-    import {
-      getFirestore, collection, getDocs, query, orderBy, setDoc, doc, serverTimestamp, updateDoc, deleteDoc, getDoc, where
-    } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
+/* ===== Firebase ===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
+  authDomain: "pmqrtabuk.firebaseapp.com",
+  projectId: "pmqrtabuk",
+  storageBucket: "pmqrtabuk.firebasestorage.app",
+  messagingSenderId: "305570616285",
+  appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
-      authDomain: "pmqrtabuk.firebaseapp.com",
-      projectId: "pmqrtabuk",
-      storageBucket: "pmqrtabuk.firebasestorage.app",
-      messagingSenderId: "305570616285",
-      appId: "1:305570616285:web:4f6839fd08b8b5aa131c34"
-    };
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+/* ===== Helpers ===== */
+const $ = s => document.querySelector(s);
+const pad = n => n<10 ? '0'+n : ''+n;
+const toISO = d => new Date(d).toISOString().slice(0,10);
+const addMonths = (dateObj, n)=>{ const d=new Date(dateObj); d.setMonth(d.getMonth()+n); return d; };
+const calcNext = pm => pm ? toISO(addMonths(new Date(pm),6)) : '';
+const notice=(m,t='info')=>{ const n=$('#notice'); n.textContent=m; n.className='notice '+(t==='ok'?'n-ok':t==='error'?'n-err':'n-info'); };
+const safeId = s => (s||'').trim().replace(/[\/#?\s]/g,'-');
+const todayISO = ()=> toISO(new Date());
 
-    // ===== Utils =====
-    const $ = s => document.querySelector(s);
-    const notice=(m,t='info')=>{
-      const n=$('#notice');
-      n.textContent=m;
-      n.className='no-print text-center py-2 font-bold '+
-        (t==='ok'?'bg-emerald-900/40 border-b border-emerald-700':
-         t==='error'?'bg-red-900/40 border-b border-red-700':
-                      'bg-sky-900/40 border-b border-sky-700');
-    };
-    const toISO=d=>new Date(d).toISOString().slice(0,10);
-    const addMonths=(d,m)=>{const x=new Date(d); x.setMonth(x.getMonth()+m); return x};
-    const safeId=s=>String(s||'').trim().replace(/[\/?#\s]+/g,'-');
+/* الحالة: ساري / خلال 30 يوم / منتهي (بعد +30 من next) */
+function statusOf(pm_date, next_date){
+  if(!next_date) return 'active';
+  const t = new Date(); t.setHours(0,0,0,0);
+  const next = new Date(next_date); next.setHours(0,0,0,0);
+  const grace = new Date(next); grace.setDate(grace.getDate()+30); // سماح 30
+  if(t > grace) return 'overdue';
+  const diffDays = Math.ceil((next - t)/86400000);
+  if(diffDays <= 30 && diffDays >= 0) return 'dueSoon';
+  return 'active';
+}
+function badgeFor(st){
+  if(st==='overdue') return '<span class="badge badge-late">منتهي</span>';
+  if(st==='dueSoon') return '<span class="badge badge-warn">خلال 30 يوم</span>';
+  return '<span class="badge badge-ok">ساري</span>';
+}
 
-    // منطق التلوين: ساري حتى (Next + شهر)، منتهي بعد ذلك
-    function rowState(pm, next){
-      if(!pm || !next) return 'none';
-      const today    = new Date();
-      const pmDate   = new Date(pm   + 'T00:00:00');
-      const nextDate = new Date(next + 'T00:00:00');
-      const grace    = new Date(nextDate); grace.setMonth(grace.getMonth()+1);
-      if(today > grace) return 'over';
-      if(today >= pmDate && today <= grace) return 'active';
-      return 'none';
+/* ===== Auth Guard + دور المستخدم ===== */
+let me=null, myRole='viewer';
+onAuthStateChanged(auth, async (u)=>{
+  if(!u){ location.href='login.html'; return; }
+  me = u;
+  // جِب دوره
+  try{
+    const us = await getDoc(doc(db,'users', u.uid));
+    if(us.exists()) myRole = us.data().role || 'viewer';
+  }catch{}
+  if(myRole==='admin') $('#btnAdmin').classList.remove('hidden');
+  notice('تم تسجيل الدخول ✅','ok');
+  await loadData();
+});
+
+/* ===== Data ===== */
+let all=[], filtered=[];
+let sites=[], depts=[];
+let chStatus=null, chMonthly=null;
+
+async function loadData(){
+  try{
+    notice('جارِ تحميل البيانات…');
+    const qs = await getDocs(query(collection(db,'assets'), orderBy('control')));
+    all = qs.docs.map(d=> ({ id: d.id, ...d.data() }));
+    // بناء لوائح المواقع/الأقسام
+    const s=new Set(), dp=new Set();
+    all.forEach(x=>{ if(x.site) s.add(x.site); if(x.department) dp.add(x.department); });
+    sites = [...s].sort(); depts=[...dp].sort();
+    fillOptions('#f_site', sites, 'كل المواقع');
+    fillOptions('#f_dept', depts, 'كل الأقسام');
+    fillOptions('#a_site', sites, 'اختر الموقع…', true);
+    fillOptions('#a_dept', depts, 'اختر القسم…', true);
+
+    filtered = all.slice();
+    renderTable();
+    renderKPIAndCharts();
+    notice('تم التحميل ✅','ok');
+  }catch(e){
+    notice('فشل التحميل: '+e.message,'error');
+  }
+}
+
+function fillOptions(sel, arr, first='—', keepFirst=false){
+  const el = $(sel);
+  const prev = keepFirst ? el.innerHTML : '';
+  el.innerHTML = keepFirst ? prev : '';
+  if(first!==null){
+    const opt = document.createElement('option');
+    opt.value=''; opt.textContent=first; el.appendChild(opt);
+  }
+  arr.forEach(v=>{
+    const o=document.createElement('option');
+    o.value=v; o.textContent=v; el.appendChild(o);
+  });
+}
+
+/* ===== Filters ===== */
+function applyFilters(){
+  const q = ($('#search').value||'').toLowerCase().trim();
+  const fs = $('#f_site').value;
+  const fd = $('#f_dept').value;
+  const st = $('#f_state').value;
+
+  filtered = all.filter(x=>{
+    if(fs && x.site!==fs) return false;
+    if(fd && x.department!==fd) return false;
+    if(q){
+      const blob = [x.control,x.tech,x.location].map(v=>String(v||'').toLowerCase()).join('|');
+      if(!blob.includes(q)) return false;
     }
-    // عمود الحالة
-    function statusOf(nextISO){
-      if(!nextISO) return {key:'over',label:'—',cls:'pill-bad'};
-      const today    = new Date();
-      const nextDate = new Date(nextISO + 'T00:00:00');
-      const grace    = new Date(nextDate); grace.setMonth(grace.getMonth()+1);
-      if(today > grace) return {key:'over',label:'متأخر',cls:'pill-bad'};
-      const diffDays = (nextDate - today)/86400000;
-      const sameMonth = (today.getFullYear()===nextDate.getFullYear() && today.getMonth()===nextDate.getMonth());
-      if(sameMonth)    return {key:'due', label:'مستحق هذا الشهر', cls:'pill-warn'};
-      if(diffDays<=30) return {key:'soon',label:'خلال 30 يومًا',  cls:'pill-warn'};
-      return {key:'ok',  label:'OK', cls:'pill-ok'};
+    if(st){
+      const s = statusOf(x.pm_date, x.next_date);
+      if(s!==st) return false;
     }
+    return true;
+  });
 
-    // ===== Roles & Scope =====
-    let currentUser = null;
-    let currentRole = 'viewer';
-    let allowedSites = [];      // للأدمن = كل المواقع. للمهندس= [Site واحد]. للفني = من user doc
-    let allowedDepts = [];      // للفني = الأقسام المحددة. للمهندس = أقسام موقعه (يُستخرج من الأصول) أو من user doc لو موجودة.
-    let engineerSite = null;    // موقع المهندس الوحيد
+  renderTable();
+  renderKPIAndCharts();
+}
+$('#btnApply').onclick = applyFilters;
+$('#btnClear').onclick = ()=>{
+  $('#search').value=''; $('#f_site').value=''; $('#f_dept').value=''; $('#f_state').value='';
+  applyFilters();
+};
 
-    function applyRoleUI(){
-      $('#userRole').textContent = currentRole ? `(${currentRole})` : '(viewer)';
+/* ===== KPI + Charts (من filtered) ===== */
+function renderKPIAndCharts(){
+  // KPI
+  $('#k_total').textContent = filtered.length;
 
-      const btnOpenAdd = $('#openAddBtn');
-      const btnBulkDel = $('#btnBulkDelete');
-      const linkImport = $('#linkImport');
-      const btnAdmin   = $('#btnAdmin');
-      const btnTeam    = $('#btnTeam');
+  const now = new Date();
+  const ym = now.getFullYear()+'-'+pad(now.getMonth()+1);
+  const sameMonth = x => (x.pm_date||'').startsWith(ym);
+  const thisMonth = filtered.filter(sameMonth).length;
+  $('#k_thisMonth').textContent = thisMonth;
 
-      const isAdmin    = currentRole==='admin';
-      const isEng      = currentRole==='engineer';
-      const isTech     = currentRole==='tech';
+  const dueSoon = filtered.filter(x=> statusOf(x.pm_date,x.next_date)==='dueSoon').length;
+  const overdue = filtered.filter(x=> statusOf(x.pm_date,x.next_date)==='overdue').length;
+  $('#k_dueSoon').textContent = dueSoon;
+  $('#k_overdue').textContent = overdue;
 
-      // من يشاهد ماذا:
-      // إضافة جهاز: admin + engineer + tech
-      if(btnOpenAdd) btnOpenAdd.style.display = (isAdmin || isEng || isTech) ? '' : 'none';
-      // حذف جماعي: admin + engineer
-      if(btnBulkDel) btnBulkDel.style.display = (isAdmin || isEng) ? '' : 'none';
-      // استيراد: admin + engineer
-      if(linkImport) linkImport.style.display = (isAdmin || isEng) ? '' : 'none';
-      // إدارة المستخدمين: admin فقط
-      if(btnAdmin)   btnAdmin.style.display   = isAdmin ? '' : 'none';
-      // إدارة الفريق (تعيين الأقسام للفنيين): admin + engineer
-      if(btnTeam)    btnTeam.style.display    = (isAdmin || isEng) ? '' : 'none';
+  // Chart 1: Status
+  const stActive = filtered.filter(x=> statusOf(x.pm_date,x.next_date)==='active').length;
+  const stSoon   = dueSoon;
+  const stLate   = overdue;
+
+  const stCtx = document.getElementById('chStatus');
+  if(chStatus) chStatus.destroy();
+  chStatus = new Chart(stCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['ساري','خلال 30 يوم','منتهي'],
+      datasets: [{ data: [stActive, stSoon, stLate] }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } } }
+  });
+
+  // Chart 2: PM per month (last 6 months)
+  const buckets = {}; // YYYY-MM -> count
+  const ref = new Date(); ref.setDate(1); ref.setHours(0,0,0,0);
+  for(let i=5;i>=0;i--){
+    const d = new Date(ref); d.setMonth(d.getMonth()-i);
+    const key = d.getFullYear()+'-'+pad(d.getMonth()+1);
+    buckets[key]=0;
+  }
+  filtered.forEach(x=>{
+    if(x.pm_date){
+      const ym = x.pm_date.slice(0,7);
+      if(ym in buckets) buckets[ym] += 1;
     }
+  });
+  const mCtx = document.getElementById('chMonthly');
+  if(chMonthly) chMonthly.destroy();
+  chMonthly = new Chart(mCtx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(buckets),
+      datasets: [{ label: 'PMs', data: Object.values(buckets) }]
+    },
+    options: {
+      scales: { y: { beginAtZero: true, precision:0 } },
+      plugins: { legend: { display:false } }
+    }
+  });
+}
 
-    // ===== Auth Guard =====
-    onAuthStateChanged(auth, async user=>{
-      if(!user){ location.href='login.html'; return; }
-      currentUser = user;
-      $('#userEmail').textContent = user.email || '';
-      notice('تم تسجيل الدخول ✅','ok');
+/* ===== Table render ===== */
+function renderTable(){
+  const tb = $('#tbody'); tb.innerHTML='';
+  filtered.forEach(x=>{
+    const st = statusOf(x.pm_date, x.next_date);
+    const tr = document.createElement('tr');
+    tr.className='border-b border-slate-800';
+    tr.innerHTML = `
+      <td class="p-2"><input type="checkbox" data-chk="${x.id}"/></td>
+      <td class="p-2 font-bold">${x.control||'—'}</td>
+      <td class="p-2">${x.site||'—'}</td>
+      <td class="p-2">${x.department||'—'}</td>
+      <td class="p-2">${x.pm_date||'—'}</td>
+      <td class="p-2">${x.next_date||'—'}</td>
+      <td class="p-2">${x.tech||'—'}</td>
+      <td class="p-2">${badgeFor(st)}</td>
+      <td class="p-2">
+        <div class="flex flex-wrap gap-1">
+          <a class="btn btn-slate" href="sticker.html#view/${encodeURIComponent(x.control)}" target="_blank" title="Sticker">Sticker</a>
+          <a class="btn btn-sky" href="qr.html?control=${encodeURIComponent(x.control)}" target="_blank" title="QR">QR</a>
+          <button class="btn btn-emerald ${myRole==='viewer'?'disabled':''}" data-pm="${x.id}" data-ctrl="${x.control||''}">تم عمل الصيانة</button>
+          <button class="btn btn-red ${myRole==='viewer'?'disabled':''}" data-del="${x.id}">حذف</button>
+        </div>
+      </td>
+    `;
+    tb.appendChild(tr);
+  });
+  refreshBulkButton();
+}
 
-      // اقرأ الدور ونطاقه
-      try{
-        const snap = await getDoc(doc(db,'users', user.uid));
-        if(snap.exists()){
-          const u = snap.data();
-          currentRole   = (u.role || 'viewer');
-          allowedSites  = Array.isArray(u.sites)? u.sites.filter(Boolean): [];
-          allowedDepts  = Array.isArray(u.departments)? u.departments.filter(Boolean): [];
-        }else{
-          currentRole='viewer'; allowedSites=[]; allowedDepts=[];
-        }
-      }catch{
-        currentRole='viewer'; allowedSites=[]; allowedDepts=[];
-      }
+/* ===== إضافة جهاز ===== */
+$('#btnAddToggle').onclick = ()=> $('#addPanel').classList.toggle('hidden');
+$('#btnCancelAdd').onclick = ()=> $('#addPanel').classList.add('hidden');
 
-      // لو مهندس: موقع واحد فقط
-      if(currentRole==='engineer'){
-        engineerSite = allowedSites[0] || null;
-      }
+function docIdFromControl(ctrl){
+  return safeId(ctrl);
+}
 
-      applyRoleUI();
-      await loadData(); // يحمّل ويطبّق نطاق الرؤية
+$('#btnSaveAsset').onclick = async ()=>{
+  if(myRole==='viewer'){ notice('صلاحياتك قراءة فقط','error'); return; }
+  const control = $('#a_control').value.trim();
+  const site    = $('#a_site').value.trim();
+  const dept    = $('#a_dept').value.trim();
+  const loc     = $('#a_loc').value.trim();
+  const tech    = $('#a_tech').value.trim();
+  const pm      = $('#a_pm').value;
+
+  if(!control || !pm){ notice('أدخل Control و PM Date','error'); return; }
+  const docId = docIdFromControl(control);
+  try{
+    await setDoc(doc(db,'assets', docId), {
+      control, site, department:dept, location:loc, tech,
+      pm_date: pm, next_date: calcNext(pm), updatedAt: serverTimestamp()
+    }, { merge:true });
+    notice('تم حفظ الجهاز ✅','ok');
+    // انعاش القوائم/الجدول
+    await loadData();
+    $('#addPanel').classList.add('hidden');
+    // مسح الحقول
+    ['a_control','a_loc','a_tech'].forEach(id=> $('#'+id).value='');
+    $('#a_site').value=''; $('#a_dept').value=''; $('#a_pm').value='';
+  }catch(e){ notice('فشل الحفظ: '+e.message,'error'); }
+};
+
+/* ===== تعديل PM (تم عمل الصيانة) ===== */
+const editModal = $('#editModal');
+const openEdit = ()=>{ editModal.classList.remove('hidden'); editModal.classList.add('flex'); };
+const closeEdit = ()=>{ editModal.classList.add('hidden'); editModal.classList.remove('flex'); };
+$('#btnEditClose').onclick = closeEdit;
+
+document.addEventListener('click', (e)=>{
+  const b = e.target.closest('button[data-pm]');
+  if(!b) return;
+  if(myRole==='viewer'){ notice('صلاحياتك قراءة فقط','error'); return; }
+  const id = b.getAttribute('data-pm');
+  const ctrl = b.getAttribute('data-ctrl')||'';
+  $('#e_id').value = id;
+  $('#e_control').textContent = ctrl;
+  $('#e_pm').value = todayISO();
+  openEdit();
+});
+
+$('#btnEditSave').onclick = async ()=>{
+  const id = $('#e_id').value;
+  const pm = $('#e_pm').value;
+  if(!pm){ notice('اختر تاريخ الصيانة','error'); return; }
+  try{
+    await updateDoc(doc(db,'assets', id), {
+      pm_date: pm,
+      next_date: calcNext(pm),
+      updatedAt: serverTimestamp()
     });
+    notice('تم التحديث ✅','ok');
+    closeEdit();
+    await loadData();
+  }catch(e){ notice('فشل التحديث: '+e.message,'error'); }
+};
 
-    $('#signOutBtn').onclick = ()=> signOut(auth).then(()=>{ location.href='login.html'; });
+/* ===== حذف فردي ===== */
+document.addEventListener('click', async (e)=>{
+  const b = e.target.closest('button[data-del]');
+  if(!b) return;
+  if(myRole==='viewer'){ notice('صلاحياتك قراءة فقط','error'); return; }
+  const id = b.getAttribute('data-del');
+  if(!confirm('حذف هذا الجهاز نهائيًا؟')) return;
+  try{
+    await deleteDoc(doc(db,'assets', id));
+    notice('تم الحذف ✅','ok');
+    await loadData();
+  }catch(err){ notice('فشل الحذف: '+err.message,'error'); }
+});
 
-    // ===== State =====
-    let all=[], filtered=[]; let page=1; const pageSize=20;
-
-    function fillFilterOptions(scopedData){
-      const sites = Array.from(new Set(scopedData.map(x=>x.site).filter(Boolean))).sort();
-      const depts = Array.from(new Set(scopedData.map(x=>x.department).filter(Boolean))).sort();
-      $('#filter_site').innerHTML = '<option value="">كل المواقع</option>' + sites.map(s=>`<option>${s}</option>`).join('');
-      $('#filter_dept').innerHTML = '<option value="">كل الأقسام</option>' + depts.map(s=>`<option>${s}</option>`).join('');
-      $('#sitesList').innerHTML = sites.map(s=>`<option value="${s}"></option>`).join('');
-      $('#deptsList').innerHTML = depts.map(s=>`<option value="${s}"></option>`).join('');
+/* ===== حذف جماعي ===== */
+function refreshBulkButton(){
+  const checked = document.querySelectorAll('input[type="checkbox"][data-chk]:checked').length;
+  const btn = $('#btnBulkDelete');
+  if(checked>0 && myRole!=='viewer'){ btn.classList.remove('disabled'); }
+  else { btn.classList.add('disabled'); }
+}
+document.addEventListener('change', (e)=>{
+  if(e.target && e.target.matches('input[type="checkbox"][data-chk], #chkAll')){
+    if(e.target.id==='chkAll'){
+      const state = e.target.checked;
+      document.querySelectorAll('input[type="checkbox"][data-chk]').forEach(c=> c.checked=state);
     }
+    refreshBulkButton();
+  }
+});
+$('#btnBulkDelete').onclick = async ()=>{
+  if($('#btnBulkDelete').classList.contains('disabled')) return;
+  if(!confirm('سيتم حذف كل العناصر المحددة، استمرار؟')) return;
+  try{
+    const ids = Array.from(document.querySelectorAll('input[type="checkbox"][data-chk]:checked')).map(c=> c.getAttribute('data-chk'));
+    for(const id of ids){ await deleteDoc(doc(db,'assets', id)); }
+    notice('تم الحذف الجماعي ✅','ok');
+    await loadData();
+  }catch(e){ notice('فشل الحذف الجماعي: '+e.message,'error'); }
+};
 
-    function withinScope(x){
-      if(currentRole==='admin') return true;
+/* ===== زر تسجيل الخروج ===== */
+$('#btnLogout').onclick = async ()=>{
+  try{ await signOut(auth); location.href='login.html'; }catch{}
+};
 
-      // Engineer: يرى موقعه فقط، والأقسام التابعة له (لو محددة له أقسام في users نقيّد بها، وإلا يسمح بكل أقسام الموقع)
-      if(currentRole==='engineer'){
-        if(!engineerSite) return false;
-        if(x.site !== engineerSite) return false;
-        if(allowedDepts.length) return allowedDepts.includes(x.department||'');
-        return true; // لو مفيش أقسام محددة له، يشوف كل أقسام الموقع
-      }
-
-      // Tech: يرى فقط المواقع/الأقسام المعيّنة له
-      if(currentRole==='tech'){
-        if(allowedSites.length && !allowedSites.includes(x.site||'')) return false;
-        if(allowedDepts.length && !allowedDepts.includes(x.department||'')) return false;
-        // لو مفيش تعيينات: لا يرى شيء
-        return (allowedSites.length>0 || allowedDepts.length>0);
-      }
-
-      // Viewer: قراءة فقط لكل شيء (لو عايز تقفله، ارجعه false)
-      return true;
-    }
-
-    function applyFilters(){
-      const q = ($('#q').value||'').trim().toLowerCase();
-      const fs = $('#filter_site').value;
-      const fd = $('#filter_dept').value;
-      const fstatus = $('#filter_status').value;
-
-      const scoped = all.filter(withinScope);
-
-      filtered = scoped.filter(x=>{
-        const matchQ = !q || (String(x.control||'').toLowerCase().includes(q) || String(x.tech||'').toLowerCase().includes(q));
-        const matchS = !fs || x.site===fs;
-        const matchD = !fd || x.department===fd;
-        const st = statusOf(x.next_date||'').key;
-        const matchT = !fstatus || st===fstatus;
-        return matchQ && matchS && matchD && matchT;
-      });
-
-      page=1; renderTable(); renderKPI();
-    }
-
-    function renderKPI(){
-      const scoped = all.filter(withinScope);
-      $('#kpi_total').textContent = scoped.length;
-      let due=0, over=0, soon=0;
-      const today = new Date();
-      for(const x of scoped){
-        const st = statusOf(x.next_date||'').key;
-        if(st==='over') over++;
-        if(st==='soon') soon++;
-        if(x.next_date){
-          const d = new Date(x.next_date+'T00:00:00');
-          if(d.getFullYear()===today.getFullYear() && d.getMonth()===today.getMonth()) due++;
-        }
-      }
-      $('#kpi_due').textContent = due;
-      $('#kpi_over').textContent = over;
-      $('#kpi_30').textContent  = soon;
-    }
-
-    function renderTable(){
-      const tbody = $('#tbody'); tbody.innerHTML='';
-      const start = (page-1)*pageSize;
-      const items = filtered.slice(start, start+pageSize);
-
-      const isAdmin = currentRole==='admin';
-      const isEng   = currentRole==='engineer';
-      const isTech  = currentRole==='tech';
-
-      for(const d of items){
-        const st = statusOf(d.next_date||'');
-        const state = rowState(d.pm_date||'', d.next_date||'');
-
-        const tr = document.createElement('tr');
-        tr.className = 'border-b border-slate-800 row-hover';
-        if(state==='active') tr.classList.add('row-active');
-        if(state==='over')   tr.classList.add('row-over');
-
-        tr.innerHTML = `
-          <td class="p-3 text-center w-10">
-            <input type="checkbox" class="rowChk w-4 h-4" value="${d.id}">
-          </td>
-          <td class="p-3 font-bold">${d.control||'—'}</td>
-          <td class="p-3">${d.site||'—'}</td>
-          <td class="p-3">${d.department||'—'}</td>
-          <td class="p-3">${d.location||'—'}</td>
-          <td class="p-3">${d.pm_date||'—'}</td>
-          <td class="p-3">${d.next_date||'—'}</td>
-          <td class="p-3">${d.tech||'—'}</td>
-          <td class="p-3"><span class="status-pill ${st.cls}">${st.label}</span></td>
-          <td class="p-3"><div class="flex flex-wrap gap-2"></div></td>
-        `;
-
-        const tools = tr.querySelector('div');
-        const controlSafe = encodeURIComponent(d.control||'');
-
-        // ✏️ تعديل
-        if (isAdmin || isEng || isTech) {
-          const btnEdit = document.createElement('button');
-          btnEdit.className = 'px-2 py-1 rounded bg-sky-500 text-sky-950 font-bold';
-          btnEdit.textContent = '✏️ تعديل';
-          btnEdit.dataset.edit = d.id || (d.control? d.control.replace(/[\/?#\s]+/g,'-') : '');
-          btnEdit.dataset.control = encodeURIComponent(d.control||'');
-          btnEdit.dataset.site    = encodeURIComponent(d.site||'');
-          btnEdit.dataset.dept    = encodeURIComponent(d.department||'');
-          btnEdit.dataset.loc     = encodeURIComponent(d.location||'');
-          btnEdit.dataset.tech    = encodeURIComponent(d.tech||'');
-          btnEdit.dataset.pm      = encodeURIComponent(d.pm_date||'');
-          tools.appendChild(btnEdit);
-        }
-
-        // ✅ تم عمل الصيانة (تحديث pm_date إلى اليوم + next بعد 6 شهور)
-        if (isAdmin || isEng || isTech) {
-          const btnQuick = document.createElement('button');
-          btnQuick.className = 'px-2 py-1 rounded bg-emerald-500 text-emerald-950 font-bold';
-          btnQuick.textContent = '✅ تم عمل الصيانة';
-          btnQuick.dataset.quickpm = d.id || (d.control? d.control.replace(/[\/?#\s]+/g,'-') : '');
-          tools.appendChild(btnQuick);
-        }
-
-        // 🏷️ استيكر
-        const aSticker = document.createElement('a');
-        aSticker.className = 'px-2 py-1 rounded bg-indigo-500 text-indigo-50 font-bold';
-        aSticker.textContent = '🏷️ استيكر';
-        aSticker.target = '_blank';
-        aSticker.href = `sticker.html#view/${controlSafe}`;
-        tools.appendChild(aSticker);
-
-        // 🔳 QR
-        const aQR = document.createElement('a');
-        aQR.className = 'px-2 py-1 rounded bg-yellow-500 text-yellow-950 font-bold';
-        aQR.textContent = '🔳 QR';
-        aQR.target = '_blank';
-        aQR.href = `qr.html?control=${controlSafe}`;
-        tools.appendChild(aQR);
-
-        // 🖨️ طباعة الاستيكر
-        const aPrint = document.createElement('a');
-        aPrint.className = 'px-2 py-1 rounded bg-pink-500 text-pink-50 font-bold';
-        aPrint.textContent = '🖨️ طباعة';
-        aPrint.target = '_blank';
-        aPrint.href = `sticker.html?autoprint=1#view/${controlSafe}`;
-        tools.appendChild(aPrint);
-
-        // 🗑️ مسح فردي: admin + engineer + tech (وفق النطاق)
-        if (isAdmin || isEng || isTech) {
-          const btnDelete = document.createElement('button');
-          btnDelete.className = 'px-2 py-1 rounded bg-red-600 text-white font-bold';
-          btnDelete.textContent = '🗑️ مسح';
-          btnDelete.dataset.del = d.id || (d.control? d.control.replace(/[\/?#\s]+/g,'-') : '');
-          tools.appendChild(btnDelete);
-        }
-
-        document.getElementById('tbody').appendChild(tr);
-      }
-
-      const end = Math.min(start + items.length, filtered.length);
-      document.getElementById('pageInfo').textContent = filtered.length ? `${start+1}–${end} من ${filtered.length}` : 'لا توجد بيانات';
-      document.getElementById('chkAll').checked = false;
-    }
-
-    // Pagination
-    document.getElementById('prev').onclick = ()=>{ if(page>1){ page--; renderTable(); } };
-    document.getElementById('next').onclick = ()=>{ if(page*pageSize < filtered.length){ page++; renderTable(); } };
-
-    // Filters events
-    ['q','filter_site','filter_dept','filter_status'].forEach(id=>{
-      const el=document.getElementById(id);
-      el.addEventListener('input', applyFilters);
-      el.addEventListener('change', applyFilters);
-    });
-    document.getElementById('refreshBtn').onclick = loadData;
-    document.getElementById('clearFilters').onclick = ()=>{ ['q','filter_site','filter_dept','filter_status'].forEach(id=> document.getElementById(id).value=''); applyFilters(); };
-
-    // زر طباعة QR للقسم الحالي
-    document.getElementById('btnDeptQR')?.addEventListener('click', ()=>{
-      const site = document.getElementById('filter_site').value;
-      const dept = document.getElementById('filter_dept').value;
-      const qs = new URLSearchParams();
-      if(site) qs.set('site', site);
-      if(dept) qs.set('dept', dept);
-      const url = qs.toString() ? `qr.html?${qs.toString()}` : 'qr.html';
-      window.open(url, '_blank');
-    });
-
-    // ===== Add Modal =====
-    const addModal = document.getElementById('addModal');
-    const openAdd  = ()=>{ addModal.classList.remove('hidden'); addModal.classList.add('flex'); };
-    const closeAdd = ()=>{ addModal.classList.add('hidden'); addModal.classList.remove('flex'); };
-    document.getElementById('openAddBtn').onclick = ()=>{
-      // قيود حسب الدور: المهندس موقع واحد فقط، الفني ضمن مواقعه
-      if(currentRole==='engineer'){ $('#a_site').value = engineerSite || ''; $('#a_site').setAttribute('readonly','readonly'); }
-      if(currentRole==='tech'){
-        if(allowedSites.length===1){ $('#a_site').value = allowedSites[0]; $('#a_site').setAttribute('readonly','readonly'); }
-      }
-      openAdd();
-    };
-    document.getElementById('closeAdd').onclick   = closeAdd;
-
-    document.getElementById('saveAdd').onclick = async ()=>{
-      const control = $('#a_control').value.trim();
-      if(!control){ notice('أدخل Control Number','error'); return; }
-      const data = {
-        control,
-        site: $('#a_site').value.trim(),
-        department: $('#a_dept').value.trim(),
-        location: $('#a_loc').value.trim(),
-        tech: $('#a_tech').value.trim(),
-        pm_date: $('#a_pm').value || '',
-      };
-      // تحقق من النطاق قبل الحفظ
-      if(currentRole==='engineer'){
-        if(!engineerSite || data.site!==engineerSite){ notice('المهندس لا يمكنه إضافة خارج موقعه','error'); return; }
-        if(allowedDepts.length && !allowedDepts.includes(data.department)){ notice('القسم غير مسموح للمهندس','error'); return; }
-      }
-      if(currentRole==='tech'){
-        if(allowedSites.length && !allowedSites.includes(data.site)){ notice('الفني لا يمكنه إضافة خارج موقعه','error'); return; }
-        if(allowedDepts.length && !allowedDepts.includes(data.department)){ notice('القسم غير مسموح للفني','error'); return; }
-      }
-
-      data.next_date = data.pm_date ? toISO(addMonths(new Date(data.pm_date),6)) : '';
-      try{
-        await setDoc(doc(db,'assets', safeId(control)), {...data, updatedAt: serverTimestamp()});
-        notice('تم الحفظ ✅','ok'); closeAdd(); await loadData();
-      }catch(e){ notice('فشل الحفظ: '+e.message,'error'); }
-    };
-
-    // ===== Edit / Quick PM / Delete (delegation) =====
-    const editModal = document.getElementById('editModal');
-    const openEdit  = ()=>{ editModal.classList.remove('hidden'); editModal.classList.add('flex'); };
-    const closeEdit = ()=>{ editModal.classList.add('hidden'); editModal.classList.remove('flex'); };
-    document.getElementById('closeEdit').onclick = closeEdit;
-
-    document.addEventListener('click', async (e)=>{
-      // فتح التعديل
-      const be = e.target.closest('button[data-edit]');
-      if(be){
-        const id = be.dataset.edit;
-        $('#m_control').value = decodeURIComponent(be.dataset.control||'');
-        $('#m_site').value    = decodeURIComponent(be.dataset.site||'');
-        $('#m_dept').value    = decodeURIComponent(be.dataset.dept||'');
-        $('#m_loc').value     = decodeURIComponent(be.dataset.loc||'');
-        $('#m_tech').value    = decodeURIComponent(be.dataset.tech||'');
-        $('#m_pm').value      = decodeURIComponent(be.dataset.pm||'');
-        window._editingId = id;
-        // قيود عرض الحقول:
-        if(currentRole==='engineer'){
-          $('#m_site').value = engineerSite || $('#m_site').value;
-          $('#m_site').setAttribute('readonly','readonly');
-        }else{
-          $('#m_site').removeAttribute('readonly');
-        }
-        openEdit();
-        return;
-      }
-
-      // تم عمل الصيانة الآن
-      const bq = e.target.closest('button[data-quickpm]');
-      if(bq){
-        try{
-          const id = bq.dataset.quickpm;
-          // اقرأ الجهاز للتحقق من النطاق قبل التحديث
-          const snap = await getDoc(doc(db,'assets', id));
-          if(!snap.exists()) { notice('العنصر غير موجود','error'); return; }
-          const x = snap.data();
-          if(!withinScope(x)){ notice('خارج نطاق الصلاحيات','error'); return; }
-
-          const today = toISO(new Date());
-          const next  = toISO(addMonths(new Date(today),6));
-          await updateDoc(doc(db,'assets', id), { pm_date: today, next_date: next, updatedAt: serverTimestamp() });
-          notice('تم تسجيل الصيانة اليوم ✅','ok');
-          await loadData();
-        }catch(err){ notice('فشل التحديث: ' + err.message, 'error'); }
-        return;
-      }
-
-      // حذف فردي
-      const bd = e.target.closest('button[data-del]');
-      if(bd){
-        // تحقّق من النطاق قبل المسح
-        try{
-          const id = bd.dataset.del;
-          const snap = await getDoc(doc(db,'assets', id));
-          if(!snap.exists()) { notice('العنصر غير موجود','error'); return; }
-          const x = snap.data();
-          if(!withinScope(x)){ notice('خارج نطاق الصلاحيات','error'); return; }
-          if(!confirm('هل تريد مسح هذا الجهاز نهائيًا؟')) return;
-          await deleteDoc(doc(db,'assets', id));
-          notice('تم المسح 🗑️','ok');
-          await loadData();
-        }catch(err){ notice('فشل المسح: '+err.message,'error'); }
-        return;
-      }
-    });
-
-    document.getElementById('saveEdit').onclick = async ()=>{
-      const control = $('#m_control').value.trim();
-      if(!control){ notice('أدخل Control Number','error'); return; }
-      const data = {
-        control,
-        site: $('#m_site').value.trim(),
-        department: $('#m_dept').value.trim(),
-        location: $('#m_loc').value.trim(),
-        tech: $('#m_tech').value.trim(),
-        pm_date: $('#m_pm').value || '',
-      };
-      data.next_date = data.pm_date ? toISO(addMonths(new Date(data.pm_date),6)) : '';
-      const id = window._editingId || safeId(control);
-
-      // اقرأ القديم للتحقق من النطاق (خاصة للمهندس/الفني)
-      try{
-        const snap = await getDoc(doc(db,'assets', id));
-        if(snap.exists()){
-          const old = snap.data();
-          if(!withinScope(old)){ notice('خارج نطاق الصلاحيات','error'); return; }
-        }else{
-          // لو مش موجود ويعدّل لإنشاء: طبّق قيود الإضافة
-          if(currentRole==='engineer'){
-            if(!engineerSite || data.site!==engineerSite){ notice('المهندس لا يمكنه حفظ خارج موقعه','error'); return; }
-            if(allowedDepts.length && !allowedDepts.includes(data.department)){ notice('القسم غير مسموح للمهندس','error'); return; }
-          }
-          if(currentRole==='tech'){
-            if(allowedSites.length && !allowedSites.includes(data.site)){ notice('الفني لا يمكنه حفظ خارج موقعه','error'); return; }
-            if(allowedDepts.length && !allowedDepts.includes(data.department)){ notice('القسم غير مسموح للفني','error'); return; }
-          }
-        }
-
-        await setDoc(doc(db,'assets', id), {...data, updatedAt: serverTimestamp()});
-        notice('تم الحفظ ✅','ok');
-        closeEdit();
-        await loadData();
-      }catch(e){ notice('فشل الحفظ: '+e.message,'error'); }
-    };
-
-    // ===== Select all / Bulk delete =====
-    const tbodyEl = document.getElementById('tbody');
-    document.getElementById('chkAll').addEventListener('change', (e)=>{
-      const checked = e.target.checked;
-      tbodyEl.querySelectorAll('.rowChk').forEach(c=> c.checked = checked);
-    });
-
-    document.getElementById('btnBulkDelete').addEventListener('click', async ()=>{
-      const ids = Array.from(tbodyEl.querySelectorAll('.rowChk:checked')).map(c=> c.value);
-      if(!ids.length){ notice('اختر صفًا واحدًا على الأقل للحذف','error'); return; }
-      if(!(currentRole==='admin' || currentRole==='engineer')){ notice('الحذف الجماعي للأدمن والمهندس فقط','error'); return; }
-      if(!confirm(`تأكيد حذف ${ids.length} جهاز؟`)) return;
-      notice('جارِ الحذف الجماعي…','info');
-      let ok=0, fail=0;
-      for(const id of ids){
-        try{
-          const snap = await getDoc(doc(db,'assets', id));
-          if(!snap.exists()) { fail++; continue; }
-          if(!withinScope(snap.data())) { fail++; continue; }
-          await deleteDoc(doc(db,'assets', id)); ok++;
-        }
-        catch{ fail++; }
-      }
-      notice(`تم الحذف: ${ok} | فشل: ${fail}`,(fail? 'error':'ok'));
-      await loadData();
-    });
-
-    // ===== إدارة الفريق (للأدمن والمهندس) =====
-    const teamModal = $('#teamModal');
-    const openTeam  = ()=>{ teamModal.classList.remove('hidden'); teamModal.classList.add('flex'); };
-    const closeTeam = ()=>{ teamModal.classList.add('hidden'); teamModal.classList.remove('flex'); };
-    $('#closeTeam').onclick = closeTeam;
-
-    $('#btnTeam')?.addEventListener('click', async ()=>{
-      // حمّل الفنيين داخل نطاق الموقع (للأدمن: كل الفنيين، للمهندس: داخل موقعه)
-      await loadTechs();
-      // حمّل أقسام الموقع (للأدمن: كل الأقسام، للمهندس: أقسام موقعه فقط)
-      buildDeptPickerForTeam();
-      openTeam();
-    });
-
-    let techUsers = []; // {id, name,email,role,sites,departments}
-    let selectedTech = null;
-    let teamDeptChosen = new Set();
-    let TEAM_DEPTS = []; // الأقسام المتاحة للاختيار
-
-    async function loadTechs(){
-      // users where role=='tech'
-      const qs = await getDocs(query(collection(db,'users'), where('role','==','tech')));
-      techUsers = qs.docs.map(d=> ({ id:d.id, ...d.data() }));
-
-      // فلترة حسب الموقع للمهندس
-      if(currentRole==='engineer' && engineerSite){
-        techUsers = techUsers.filter(u=>{
-          const sites = Array.isArray(u.sites)? u.sites:[];
-          return sites.includes(engineerSite);
-        });
-      }
-      renderTechList();
-    }
-
-    function renderTechList(){
-      const list = $('#t_list');
-      const q = ($('#t_search').value||'').toLowerCase().trim();
-      list.innerHTML='';
-      techUsers
-        .filter(u=> !q || (String(u.name||'').toLowerCase().includes(q) || String(u.email||'').toLowerCase().includes(q)))
-        .forEach(u=>{
-          const div = document.createElement('div');
-          div.className = 'pick-item';
-          div.innerHTML = `<span>${u.name||'—'} <span class="text-slate-400 text-xs">(${u.email||''})</span></span>
-                           <button class="text-indigo-700 font-bold">اختيار</button>`;
-          div.onclick = ()=> selectTech(u);
-          list.appendChild(div);
-        });
-    }
-    $('#t_search').addEventListener('input', renderTechList);
-
-    function buildDeptPickerForTeam(){
-      // استخرج الأقسام من الأصول داخل نطاق الموقع
-      let pool = all;
-      if(currentRole==='engineer' && engineerSite){
-        pool = all.filter(x=>x.site===engineerSite);
-      }
-      TEAM_DEPTS = Array.from(new Set(pool.map(x=>x.department).filter(Boolean))).sort();
-
-      const list = $('#t_deptList');
-      const chosen = $('#t_deptChosen');
-      const search = $('#t_deptSearch');
-
-      function renderDeptList(){
-        const q=(search.value||'').toLowerCase().trim();
-        list.innerHTML='';
-        TEAM_DEPTS.filter(v=>!q || v.toLowerCase().includes(q)).forEach(val=>{
-          const div=document.createElement('div');
-          div.className='pick-item';
-          div.innerHTML=`<span>${val}</span><span class="text-slate-400">+</span>`;
-          div.onclick=()=>{ if(!teamDeptChosen.has(val)){ teamDeptChosen.add(val); renderDeptChosen(); } };
-          list.appendChild(div);
-        });
-      }
-      function renderDeptChosen(){
-        chosen.innerHTML='';
-        Array.from(teamDeptChosen).sort().forEach(val=>{
-          const chip=document.createElement('span');
-          chip.className='chip';
-          chip.innerHTML=`<span>${val}</span><button title="إزالة">✕</button>`;
-          chip.querySelector('button').onclick=()=>{ teamDeptChosen.delete(val); renderDeptChosen(); };
-          chosen.appendChild(chip);
-        });
-      }
-      search.oninput = renderDeptList;
-      renderDeptList(); renderDeptChosen();
-    }
-
-    async function selectTech(u){
-      selectedTech = u;
-      // عيّن الأقسام المختارة = أقسام المستخدم الحالية (لكن للمهندس سنضمن أنها داخل موقعه)
-      teamDeptChosen = new Set(Array.isArray(u.departments)? u.departments: []);
-      // لو مهندس: تأكد أن tech لديه site = engineerSite
-      if(currentRole==='engineer' && engineerSite){
-        // إن لم يكن مضافًا، نضيفه (لن نحفظ الآن؛ فقط إعلام المستخدم)
-        if(!(Array.isArray(u.sites)&&u.sites.includes(engineerSite))){
-          notice(`تنبيه: سيتم إضافة موقع "${engineerSite}" لهذا الفني عند الحفظ.`, 'info');
-        }
-      }
-      $('#t_save').disabled = false;
-      // حدّث عرض المختارة
-      const chosen = $('#t_deptChosen');
-      chosen.innerHTML='';
-      Array.from(teamDeptChosen).sort().forEach(val=>{
-        const chip=document.createElement('span');
-        chip.className='chip';
-        chip.innerHTML=`<span>${val}</span><button title="إزالة">✕</button>`;
-        chip.querySelector('button').onclick=()=>{ teamDeptChosen.delete(val); selectTech({...u, departments:Array.from(teamDeptChosen)}); };
-        chosen.appendChild(chip);
-      });
-    }
-
-    $('#t_deptSearch').addEventListener('input', ()=>{/* الرسم يحدث داخل buildDeptPickerForTeam */});
-    $('#t_save').addEventListener('click', async ()=>{
-      if(!selectedTech){ return; }
-      try{
-        const extra = ($('#t_deptExtra').value||'').split(',').map(s=>s.trim()).filter(Boolean);
-        const finalDepts = Array.from(new Set([...teamDeptChosen, ...extra]));
-
-        let finalSites = Array.isArray(selectedTech.sites)? [...selectedTech.sites]: [];
-        if(currentRole==='engineer' && engineerSite && !finalSites.includes(engineerSite)){
-          finalSites.push(engineerSite);
-        }
-
-        await updateDoc(doc(db,'users', selectedTech.id), {
-          role: 'tech', // لن نرفع لأدمن هنا
-          sites: finalSites,
-          departments: finalDepts,
-          updatedAt: serverTimestamp()
-        });
-        notice('تم حفظ تعيينات الفني ✅','ok');
-        $('#t_deptExtra').value='';
-        await loadTechs(); // لتحديث القائمة
-      }catch(e){
-        notice('فشل حفظ التعيينات: ' + e.message, 'error');
-      }
-    });
-
-    // ===== Load data =====
-    async function loadData(){
-      try{
-        notice('جارِ تحميل البيانات…');
-        const qs = await getDocs(query(collection(db,'assets'), orderBy('control')));
-        all = qs.docs.map(d=> ({ id: d.id, ...d.data() }));
-
-        // احصر القوائم حسب النطاق (للفلاتر والقوائم)
-        const scoped = all.filter(withinScope);
-        fillFilterOptions(scoped);
-
-        filtered = scoped.slice();
-        renderTable();
-        renderKPI();
-        notice('تم التحميل ✅','ok');
-      }catch(e){ notice('فشل التحميل: '+e.message,'error'); }
-    }
-
-    // Topbar extra buttons
-    document.getElementById('btnAdmin')?.addEventListener('click', ()=>{ window.location.href='admin.html'; });
-
-    // أخطاء عامة
-    window.addEventListener('error', e=> notice('خطأ: '+(e.error?.message||e.message),'error'));
-    window.addEventListener('unhandledrejection', e=> notice('خطأ: '+(e.reason?.message||e.reason),'error'));
-  </script>
+/* أخطاء عامة */
+window.addEventListener('error', e=> notice('خطأ: '+(e.error?.message||e.message),'error'));
+window.addEventListener('unhandledrejection', e=> notice('خطأ: '+(e.reason?.message||e.reason),'error'));
+</script>
 </body>
 </html>
