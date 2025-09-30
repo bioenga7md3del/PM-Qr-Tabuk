@@ -6,6 +6,8 @@
 <title>PPM TABUK • Dashboard</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- مكتبة التصدير إلى Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
 <style>
   :root{ --bg:#0b1220; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --ok:#10b981; --err:#ef4444; --info:#3b82f6; }
   body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
@@ -25,6 +27,11 @@
   .tbl th,.tbl td{white-space:nowrap}
   .accordion{cursor:pointer}
   .disabled{opacity:.5;pointer-events:none}
+  /* أحجام شارت أصغر */
+  .chartBox{min-height:180px}
+  @media (max-width:640px){
+    .chartBox{min-height:160px}
+  }
 </style>
 </head>
 <body>
@@ -69,21 +76,25 @@
     </div>
   </section>
 
-  <!-- الرسوم البيانية -->
+  <!-- الرسوم البيانية (أصغر) -->
   <section class="grid grid-cols-1 lg:grid-cols-2 gap-3">
     <div class="card p-4">
       <div class="mb-2 font-bold">توزيع الحالة (بعد الفلترة)</div>
-      <canvas id="chStatus" height="180"></canvas>
+      <div class="chartBox">
+        <canvas id="chStatus" height="140"></canvas>
+      </div>
     </div>
     <div class="card p-4">
       <div class="mb-2 font-bold">عدد PM حسب الشهر (آخر 6 أشهر)</div>
-      <canvas id="chMonthly" height="180"></canvas>
+      <div class="chartBox">
+        <canvas id="chMonthly" height="140"></canvas>
+      </div>
     </div>
   </section>
 
   <!-- فلاتر + أدوات -->
   <section class="card p-4 space-y-3">
-    <div class="grid grid-cols-2 md:grid-cols-6 gap-2">
+    <div class="grid grid-cols-2 md:grid-cols-7 gap-2">
       <input id="search" placeholder="بحث (Control/Tech)…" class="px-3 py-2 rounded bg-slate-900 border border-slate-700"/>
       <select id="f_site" class="px-3 py-2 rounded bg-slate-900 border border-slate-700">
         <option value="">كل المواقع</option>
@@ -98,7 +109,8 @@
         <option value="overdue">منتهي</option>
       </select>
       <button id="btnApply" class="btn btn-sky">تطبيق الفلاتر</button>
-      <button id="btnClear" class="btn btn-slate">مسح الفلاتر</button>
+      <button id="btnClear" class="btn btn-slate">مسح</button>
+      <button id="btnExport" class="btn btn-emerald">تصدير Excel</button>
     </div>
 
     <div class="flex flex-wrap gap-2">
@@ -170,7 +182,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/fireba
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 import {
   getFirestore, collection, query, orderBy, getDocs, setDoc, doc, serverTimestamp,
-  getDoc, updateDoc, deleteDoc, where
+  getDoc, updateDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
 /* ===== Firebase ===== */
@@ -218,7 +230,6 @@ let me=null, myRole='viewer';
 onAuthStateChanged(auth, async (u)=>{
   if(!u){ location.href='login.html'; return; }
   me = u;
-  // جِب دوره
   try{
     const us = await getDoc(doc(db,'users', u.uid));
     if(us.exists()) myRole = us.data().role || 'viewer';
@@ -238,12 +249,7 @@ async function loadData(){
     notice('جارِ تحميل البيانات…');
     const qs = await getDocs(query(collection(db,'assets'), orderBy('control')));
     all = qs.docs.map(d=> ({ id: d.id, ...d.data() }));
-    // بناء لوائح المواقع/الأقسام
-    const s=new Set(), dp=new Set();
-    all.forEach(x=>{ if(x.site) s.add(x.site); if(x.department) dp.add(x.department); });
-    sites = [...s].sort(); depts=[...dp].sort();
-    fillOptions('#f_site', sites, 'كل المواقع');
-    fillOptions('#f_dept', depts, 'كل الأقسام');
+    buildSitesAndDepts();
     fillOptions('#a_site', sites, 'اختر الموقع…', true);
     fillOptions('#a_dept', depts, 'اختر القسم…', true);
 
@@ -256,10 +262,19 @@ async function loadData(){
   }
 }
 
+function buildSitesAndDepts(){
+  const s=new Set(), d=new Set();
+  all.forEach(x=>{ if(x.site) s.add(x.site); if(x.department) d.add(x.department); });
+  sites = [...s].sort(); depts=[...d].sort();
+  // املأ فلاتر المواقع والأقسام (الأقسام ستتغير ديناميك حسب الموقع)
+  fillOptions('#f_site', sites, 'كل المواقع');
+  fillDeptFilterForSite(''); // مبدئيًا كل الأقسام
+}
+
 function fillOptions(sel, arr, first='—', keepFirst=false){
   const el = $(sel);
-  const prev = keepFirst ? el.innerHTML : '';
-  el.innerHTML = keepFirst ? prev : '';
+  const firstHTML = keepFirst ? el.innerHTML : '';
+  el.innerHTML = keepFirst ? firstHTML : '';
   if(first!==null){
     const opt = document.createElement('option');
     opt.value=''; opt.textContent=first; el.appendChild(opt);
@@ -269,6 +284,37 @@ function fillOptions(sel, arr, first='—', keepFirst=false){
     o.value=v; o.textContent=v; el.appendChild(o);
   });
 }
+
+/* تعبئة الأقسام حسب الموقع المختار في الفلتر */
+function fillDeptFilterForSite(siteValue){
+  let list;
+  if(!siteValue){
+    // كل الأقسام من كل المواقع
+    const d=new Set(); all.forEach(x=> x.department && d.add(x.department));
+    list = [...d].sort();
+  }else{
+    const d=new Set(); all.forEach(x=>{
+      if(x.site===siteValue && x.department) d.add(x.department);
+    });
+    list = [...d].sort();
+  }
+  const sel = $('#f_dept');
+  sel.innerHTML='';
+  const any = document.createElement('option');
+  any.value=''; any.textContent='كل الأقسام';
+  sel.appendChild(any);
+  list.forEach(dep=>{
+    const o=document.createElement('option');
+    o.value=dep; o.textContent=dep;
+    sel.appendChild(o);
+  });
+}
+
+/* عندما يتغير الموقع في الفلتر -> أعِد تعبئة الأقسام */
+$('#f_site').addEventListener('change', ()=>{
+  const fs = $('#f_site').value;
+  fillDeptFilterForSite(fs);
+});
 
 /* ===== Filters ===== */
 function applyFilters(){
@@ -296,7 +342,8 @@ function applyFilters(){
 }
 $('#btnApply').onclick = applyFilters;
 $('#btnClear').onclick = ()=>{
-  $('#search').value=''; $('#f_site').value=''; $('#f_dept').value=''; $('#f_state').value='';
+  $('#search').value=''; $('#f_site').value=''; fillDeptFilterForSite(''); $('#f_dept').value='';
+  $('#f_state').value='';
   applyFilters();
 };
 
@@ -325,11 +372,8 @@ function renderKPIAndCharts(){
   if(chStatus) chStatus.destroy();
   chStatus = new Chart(stCtx, {
     type: 'doughnut',
-    data: {
-      labels: ['ساري','خلال 30 يوم','منتهي'],
-      datasets: [{ data: [stActive, stSoon, stLate] }]
-    },
-    options: { plugins: { legend: { position: 'bottom' } } }
+    data: { labels: ['ساري','خلال 30 يوم','منتهي'], datasets: [{ data: [stActive, stSoon, stLate] }] },
+    options: { maintainAspectRatio:true, plugins: { legend: { position: 'bottom' } }, cutout:'55%' }
   });
 
   // Chart 2: PM per month (last 6 months)
@@ -355,6 +399,7 @@ function renderKPIAndCharts(){
       datasets: [{ label: 'PMs', data: Object.values(buckets) }]
     },
     options: {
+      maintainAspectRatio:true,
       scales: { y: { beginAtZero: true, precision:0 } },
       plugins: { legend: { display:false } }
     }
@@ -395,9 +440,7 @@ function renderTable(){
 $('#btnAddToggle').onclick = ()=> $('#addPanel').classList.toggle('hidden');
 $('#btnCancelAdd').onclick = ()=> $('#addPanel').classList.add('hidden');
 
-function docIdFromControl(ctrl){
-  return safeId(ctrl);
-}
+function docIdFromControl(ctrl){ return safeId(ctrl); }
 
 $('#btnSaveAsset').onclick = async ()=>{
   if(myRole==='viewer'){ notice('صلاحياتك قراءة فقط','error'); return; }
@@ -416,10 +459,8 @@ $('#btnSaveAsset').onclick = async ()=>{
       pm_date: pm, next_date: calcNext(pm), updatedAt: serverTimestamp()
     }, { merge:true });
     notice('تم حفظ الجهاز ✅','ok');
-    // انعاش القوائم/الجدول
     await loadData();
     $('#addPanel').classList.add('hidden');
-    // مسح الحقول
     ['a_control','a_loc','a_tech'].forEach(id=> $('#'+id).value='');
     $('#a_site').value=''; $('#a_dept').value=''; $('#a_pm').value='';
   }catch(e){ notice('فشل الحفظ: '+e.message,'error'); }
@@ -500,10 +541,52 @@ $('#btnBulkDelete').onclick = async ()=>{
   }catch(e){ notice('فشل الحذف الجماعي: '+e.message,'error'); }
 };
 
-/* ===== زر تسجيل الخروج ===== */
-$('#btnLogout').onclick = async ()=>{
-  try{ await signOut(auth); location.href='login.html'; }catch{}
+/* ===== تصدير Excel (البيانات المعروضة) ===== */
+$('#btnExport').onclick = ()=>{
+  try{
+    const rows = filtered.map(x=>({
+      Control: x.control||'',
+      Site: x.site||'',
+      Department: x.department||'',
+      Location: x.location||'',
+      Technician: x.tech||'',
+      PM_Date: x.pm_date||'',
+      Next_Date: x.next_date||'',
+      Status: statusOf(x.pm_date,x.next_date)
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Assets');
+    const d = new Date();
+    const fname = `assets_export_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.xlsx`;
+    XLSX.writeFile(wb, fname);
+    notice('تم تصدير الملف ✅','ok');
+  }catch(e){
+    notice('فشل التصدير: '+e.message,'error');
+  }
 };
+
+/* ===== ربط أقسام إضافة جهاز بالموقع المختار (اختياري لسهولة الإدخال) ===== */
+$('#a_site').addEventListener('change', ()=>{
+  const selSite = $('#a_site').value;
+  let list;
+  if(!selSite){
+    const d=new Set(); all.forEach(x=> x.department && d.add(x.department));
+    list=[...d].sort();
+  }else{
+    const d=new Set(); all.forEach(x=>{ if(x.site===selSite && x.department) d.add(x.department); });
+    list=[...d].sort();
+  }
+  const el = $('#a_dept'); el.innerHTML='';
+  const any = document.createElement('option'); any.value=''; any.textContent='اختر القسم…';
+  el.appendChild(any);
+  list.forEach(dep=>{
+    const o=document.createElement('option'); o.value=dep; o.textContent=dep; el.appendChild(o);
+  });
+});
+
+/* ===== زر تسجيل الخروج ===== */
+$('#btnLogout').onclick = async ()=>{ try{ await signOut(auth); location.href='login.html'; }catch{} };
 
 /* أخطاء عامة */
 window.addEventListener('error', e=> notice('خطأ: '+(e.error?.message||e.message),'error'));
