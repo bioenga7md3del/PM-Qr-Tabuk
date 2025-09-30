@@ -4,10 +4,16 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>PPM TABUK • Dashboard</title>
+
+<!-- Tailwind -->
 <script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<!-- مكتبة التصدير إلى Excel (تُستخدم عبر window.XLSX) -->
+
+<!-- XLSX للتصدير (سنستخدم window.XLSX داخل السكربت) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
+
 <style>
   :root{ --bg:#0b1220; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --ok:#10b981; --err:#ef4444; --info:#3b82f6; }
   body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
@@ -49,6 +55,7 @@
     </div>
     <div class="flex items-center gap-2">
       <a href="qr.html" class="btn btn-sky">صفحة QR</a>
+      <a href="import.html" id="btnImport" class="btn btn-slate">استيراد Excel</a>
       <a href="admin.html" id="btnAdmin" class="btn btn-slate hidden">إدارة المستخدمين</a>
       <button id="btnLogout" class="btn btn-red">خروج</button>
     </div>
@@ -60,7 +67,7 @@
   <!-- الداشبورد -->
   <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
     <div class="card p-4">
-      <div class="text-sm text-slate-400">إجمالي (بعد الفلترة)</div>
+      <div class="text-sm text-slate-400">إجمالي (بعد الفلترة/الصلاحيات)</div>
       <div id="k_total" class="text-2xl font-extrabold">0</div>
     </div>
     <div class="card p-4">
@@ -80,7 +87,7 @@
   <!-- الرسوم البيانية (صغيرة) -->
   <section class="grid grid-cols-1 lg:grid-cols-3 gap-3">
     <div class="card p-4">
-      <div class="mb-2 font-bold">توزيع الحالة (بعد الفلترة)</div>
+      <div class="mb-2 font-bold">توزيع الحالة (بعد الفلترة/الصلاحيات)</div>
       <div class="chartBox"><canvas id="chStatus"></canvas></div>
     </div>
     <div class="card p-4">
@@ -95,7 +102,7 @@
 
   <!-- فلاتر + أدوات -->
   <section class="card p-4 space-y-3">
-    <div class="grid grid-cols-2 md:grid-cols-7 gap-2">
+    <div class="grid grid-cols-2 md:grid-cols-8 gap-2">
       <input id="search" placeholder="بحث (Control/Tech)…" class="px-3 py-2 rounded bg-slate-900 border border-slate-700"/>
       <select id="f_site" class="px-3 py-2 rounded bg-slate-900 border border-slate-700">
         <option value="">كل المواقع</option>
@@ -112,11 +119,11 @@
       <button id="btnApply" class="btn btn-sky">تطبيق</button>
       <button id="btnClear" class="btn btn-slate">مسح</button>
       <button id="btnExport" class="btn btn-emerald">تصدير Excel</button>
+      <button id="btnBulkDelete" class="btn btn-red disabled" title="احذف المحدد">حذف جماعي</button>
     </div>
 
     <div class="flex flex-wrap gap-2">
       <button id="btnAddToggle" class="btn btn-emerald">➕ إضافة جهاز</button>
-      <button id="btnBulkDelete" class="btn btn-red disabled" title="احذف المحدد">حذف جماعي</button>
       <a href="qr.html" class="btn btn-sky">صفحة QR</a>
     </div>
 
@@ -179,6 +186,7 @@
 </div>
 
 <script type="module">
+/* ===== Firebase ===== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 import {
@@ -186,7 +194,6 @@ import {
   getDoc, updateDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
-/* ===== Firebase ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyDegk1oK0xV8TgrZcwbkRLA2VgzkGK_1MM",
   authDomain: "pmqrtabuk.firebaseapp.com",
@@ -209,7 +216,7 @@ const notice=(m,t='info')=>{ const n=$('#notice'); n.textContent=m; n.className=
 const safeId = s => (s||'').trim().replace(/[\/#?\s]/g,'-');
 const todayISO = ()=> toISO(new Date());
 
-/* الحالة: ساري / خلال 30 يوم / منتهي (بعد +30 من next) */
+/* ===== حالة الجهاز ===== */
 function statusOf(pm_date, next_date){
   if(!next_date) return 'active';
   const t = new Date(); t.setHours(0,0,0,0);
@@ -226,22 +233,54 @@ function badgeFor(st){
   return '<span class="badge badge-ok">ساري</span>';
 }
 
-/* ===== Auth Guard + دور المستخدم ===== */
-let me=null, myRole='viewer';
+/* ===== أدوار وصلاحيات =====
+admin   : يرى كل المواقع/الأقسام + يضيف/يعدل/يحذف + استيراد/تصدير + زر إدارة المستخدمين
+engineer: يرى فقط المواقع الموجودة في users/{uid}.sites ويستطيع إضافة/تعديل/حذف داخلها،
+          ويعرض كل الأقسام داخل هذه المواقع
+tech    : يرى فقط المواقع في users/{uid}.sites والأقسام في users/{uid}.departments،
+          ويستطيع إضافة/تعديل/حذف داخل نطاقه
+viewer  : عرض فقط
+*/
+let me=null, myRole='viewer', mySites=[], myDepts=[];
+const canWrite = ()=> (myRole==='admin' || myRole==='engineer' || myRole==='tech');
+const canManageUsers = ()=> myRole==='admin';
+const canTouchAsset = (x)=>{
+  if(myRole==='admin') return true;
+  if(myRole==='engineer'){
+    return mySites.length===0 || mySites.includes(x.site||'');
+  }
+  if(myRole==='tech'){
+    const okSite = (mySites.length===0) || mySites.includes(x.site||'');
+    const okDept = (myDepts.length===0) || myDepts.includes(x.department||'');
+    return okSite && okDept;
+  }
+  return false;
+};
+
+/* ===== Auth Guard + تحميل صلاحياتي ===== */
 onAuthStateChanged(auth, async (u)=>{
   if(!u){ location.href='login.html'; return; }
   me = u;
   try{
     const us = await getDoc(doc(db,'users', u.uid));
-    if(us.exists()) myRole = us.data().role || 'viewer';
+    if(us.exists()){
+      const ud = us.data();
+      myRole  = ud.role || 'viewer';
+      mySites = Array.isArray(ud.sites)? ud.sites : [];
+      myDepts = Array.isArray(ud.departments)? ud.departments : [];
+    }
   }catch{}
-  if(myRole==='admin') $('#btnAdmin').classList.remove('hidden');
+  // إظهار أدوات الإدارة والاستيراد حسب الدور
+  if(canManageUsers()) $('#btnAdmin').classList.remove('hidden');
+  // الاستيراد مسموح لكل من admin/engineer/tech (viewer يشوف الزر disabled)
+  if(!canWrite()) { $('#btnImport').classList.add('disabled'); $('#btnAddToggle').classList.add('disabled'); }
+
   notice('تم تسجيل الدخول ✅','ok');
   await loadData();
 });
 
 /* ===== Data ===== */
-let all=[], filtered=[];
+let all=[], visible=[], filtered=[];
 let sites=[], depts=[];
 let chStatus=null, chMonthly=null, chSiteMonth=null;
 
@@ -250,11 +289,28 @@ async function loadData(){
     notice('جارِ تحميل البيانات…');
     const qs = await getDocs(query(collection(db,'assets'), orderBy('control')));
     all = qs.docs.map(d=> ({ id: d.id, ...d.data() }));
+
+    // حدد نطاق الرؤية حسب الدور
+    visible = all.filter(x=>{
+      if(myRole==='admin') return true;
+      if(myRole==='engineer'){
+        return (mySites.length===0) || mySites.includes(x.site||'');
+      }
+      if(myRole==='tech'){
+        const okSite = (mySites.length===0) || mySites.includes(x.site||'');
+        const okDept = (myDepts.length===0) || myDepts.includes(x.department||'');
+        return okSite && okDept;
+      }
+      // viewer
+      return true; // يرى الكل للقراءة فقط (لو حابب تقفل أكثر، غيّرها)
+    });
+
+    // بناء لوائح المواقع/الأقسام من "visible" فقط
     buildSitesAndDepts();
     fillOptions('#a_site', sites, 'اختر الموقع…', true);
     fillOptions('#a_dept', depts, 'اختر القسم…', true);
 
-    filtered = all.slice();
+    filtered = visible.slice();
     renderTable();
     renderKPIAndCharts();
     notice('تم التحميل ✅','ok');
@@ -265,54 +321,38 @@ async function loadData(){
 
 function buildSitesAndDepts(){
   const s=new Set(), d=new Set();
-  all.forEach(x=>{ if(x.site) s.add(x.site); if(x.department) d.add(x.department); });
+  visible.forEach(x=>{ if(x.site) s.add(x.site); if(x.department) d.add(x.department); });
   sites = [...s].sort(); depts=[...d].sort();
-  // املأ فلاتر المواقع والأقسام (الأقسام ستتغير ديناميك حسب الموقع)
   fillOptions('#f_site', sites, 'كل المواقع');
-  fillDeptFilterForSite(''); // مبدئيًا كل الأقسام
+  fillDeptFilterForSite('');
 }
-
 function fillOptions(sel, arr, first='—', keepFirst=false){
   const el = $(sel);
-  const firstHTML = keepFirst ? el.innerHTML : '';
-  el.innerHTML = keepFirst ? firstHTML : '';
+  const old = keepFirst ? el.innerHTML : '';
+  el.innerHTML = keepFirst ? old : '';
   if(first!==null){
-    const opt = document.createElement('option');
-    opt.value=''; opt.textContent=first; el.appendChild(opt);
+    const opt = document.createElement('option'); opt.value=''; opt.textContent=first; el.appendChild(opt);
   }
-  arr.forEach(v=>{
-    const o=document.createElement('option');
-    o.value=v; o.textContent=v; el.appendChild(o);
-  });
+  arr.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; el.appendChild(o); });
 }
 
-/* تعبئة الأقسام حسب الموقع في الفلتر */
+/* الأقسام حسب الموقع المختار في الفلتر (من visible) */
 function fillDeptFilterForSite(siteValue){
   let list;
   if(!siteValue){
-    const d=new Set(); all.forEach(x=> x.department && d.add(x.department));
+    const d=new Set(); visible.forEach(x=> x.department && d.add(x.department));
     list = [...d].sort();
   }else{
-    const d=new Set(); all.forEach(x=>{
-      if(x.site===siteValue && x.department) d.add(x.department);
-    });
+    const d=new Set(); visible.forEach(x=>{ if(x.site===siteValue && x.department) d.add(x.department); });
     list = [...d].sort();
   }
   const sel = $('#f_dept');
   sel.innerHTML='';
-  const any = document.createElement('option');
-  any.value=''; any.textContent='كل الأقسام';
+  const any = document.createElement('option'); any.value=''; any.textContent='كل الأقسام';
   sel.appendChild(any);
-  list.forEach(dep=>{
-    const o=document.createElement('option');
-    o.value=dep; o.textContent=dep;
-    sel.appendChild(o);
-  });
+  list.forEach(dep=>{ const o=document.createElement('option'); o.value=dep; o.textContent=dep; sel.appendChild(o); });
 }
-$('#f_site').addEventListener('change', ()=>{
-  const fs = $('#f_site').value;
-  fillDeptFilterForSite(fs);
-});
+$('#f_site').addEventListener('change', ()=> fillDeptFilterForSite($('#f_site').value));
 
 /* ===== Filters ===== */
 function applyFilters(){
@@ -321,7 +361,7 @@ function applyFilters(){
   const fd = $('#f_dept').value;
   const st = $('#f_state').value;
 
-  filtered = all.filter(x=>{
+  filtered = visible.filter(x=>{
     if(fs && x.site!==fs) return false;
     if(fd && x.department!==fd) return false;
     if(q){
@@ -329,8 +369,7 @@ function applyFilters(){
       if(!blob.includes(q)) return false;
     }
     if(st){
-      const s = statusOf(x.pm_date, x.next_date);
-      if(s!==st) return false;
+      if(statusOf(x.pm_date, x.next_date)!==st) return false;
     }
     return true;
   });
@@ -349,65 +388,42 @@ $('#btnClear').onclick = ()=>{
 function renderKPIAndCharts(){
   // KPI
   $('#k_total').textContent = filtered.length;
-
   const now = new Date();
   const ym = now.getFullYear()+'-'+pad(now.getMonth()+1);
   const sameMonth = x => (x.pm_date||'').startsWith(ym);
-  const thisMonth = filtered.filter(sameMonth).length;
-  $('#k_thisMonth').textContent = thisMonth;
+  $('#k_thisMonth').textContent = filtered.filter(sameMonth).length;
 
   const dueSoon = filtered.filter(x=> statusOf(x.pm_date,x.next_date)==='dueSoon').length;
   const overdue = filtered.filter(x=> statusOf(x.pm_date,x.next_date)==='overdue').length;
   $('#k_dueSoon').textContent = dueSoon;
   $('#k_overdue').textContent = overdue;
 
-  // Chart 1: Status (صغير)
+  // Chart 1
   const stActive = filtered.filter(x=> statusOf(x.pm_date,x.next_date)==='active').length;
-  const stSoon   = dueSoon;
-  const stLate   = overdue;
   const stCtx = document.getElementById('chStatus');
-  if(chStatus) chStatus.destroy();
-  chStatus = new Chart(stCtx, {
+  if(window._chStatus) window._chStatus.destroy();
+  window._chStatus = new Chart(stCtx, {
     type: 'doughnut',
-    data: { labels: ['ساري','خلال 30 يوم','منتهي'], datasets: [{ data: [stActive, stSoon, stLate] }] },
-    options: {
-      responsive:true, maintainAspectRatio:true, cutout:'60%',
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }
-    }
+    data: { labels: ['ساري','خلال 30 يوم','منتهي'], datasets: [{ data: [stActive, dueSoon, overdue] }] },
+    options: { responsive:true, maintainAspectRatio:true, cutout:'60%', plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12 } } } }
   });
 
-  // Chart 2: PM per month (last 6)
+  // Chart 2: آخر 6 شهور
   const buckets = {}; // YYYY-MM -> count
   const ref = new Date(); ref.setDate(1); ref.setHours(0,0,0,0);
-  for(let i=5;i>=0;i--){
-    const d = new Date(ref); d.setMonth(d.getMonth()-i);
-    const key = d.getFullYear()+'-'+pad(d.getMonth()+1);
-    buckets[key]=0;
-  }
-  filtered.forEach(x=>{
-    if(x.pm_date){
-      const ym = x.pm_date.slice(0,7);
-      if(ym in buckets) buckets[ym] += 1;
-    }
-  });
+  for(let i=5;i>=0;i--){ const d=new Date(ref); d.setMonth(d.getMonth()-i); const k=d.getFullYear()+'-'+pad(d.getMonth()+1); buckets[k]=0; }
+  filtered.forEach(x=>{ if(x.pm_date){ const ym=x.pm_date.slice(0,7); if(ym in buckets) buckets[ym]+=1; } });
   const mCtx = document.getElementById('chMonthly');
-  if(chMonthly) chMonthly.destroy();
-  chMonthly = new Chart(mCtx, {
-    type: 'bar',
-    data: { labels: Object.keys(buckets), datasets: [{ label: 'PMs', data: Object.values(buckets) }] },
-    options: {
-      responsive:true, maintainAspectRatio:true,
-      scales: { y: { beginAtZero: true, precision:0 } },
-      plugins: { legend: { display:false } }
-    }
+  if(window._chMonthly) window._chMonthly.destroy();
+  window._chMonthly = new Chart(mCtx, {
+    type:'bar',
+    data:{ labels:Object.keys(buckets), datasets:[{ label:'PMs', data:Object.values(buckets) }] },
+    options:{ responsive:true, maintainAspectRatio:true, scales:{ y:{ beginAtZero:true, precision:0 } }, plugins:{ legend:{ display:false } } }
   });
 
   // Chart 3: المواقع × شهور السنة (Stacked)
-  const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
   const monthLabels = ['ينا','فبر','مار','أبر','ماي','يون','يول','أغس','سبت','أكت','نوف','ديس'];
-
-  // حساب عدد PM لكل (موقع, شهر) من filtered
-  const siteSet = new Map(); // site -> counts array[12]
+  const siteSet = new Map(); // site -> array 12
   filtered.forEach(x=>{
     const site = x.site || 'غير محدد';
     const pm   = x.pm_date || '';
@@ -416,10 +432,7 @@ function renderKPIAndCharts(){
     if(!siteSet.has(site)) siteSet.set(site, Array(12).fill(0));
     siteSet.get(site)[m-1] += 1;
   });
-
-  // لو المواقع كتير، خُد أعلى 6 و إجمع الباقي في "أخرى"
-  const entries = Array.from(siteSet.entries());
-  entries.sort((a,b)=> b[1].reduce((s,v)=>s+v,0) - a[1].reduce((s,v)=>s+v,0));
+  const entries = Array.from(siteSet.entries()).sort((a,b)=> b[1].reduce((s,v)=>s+v,0)-a[1].reduce((s,v)=>s+v,0));
   const top = entries.slice(0,6);
   const rest = entries.slice(6);
   if(rest.length){
@@ -427,33 +440,26 @@ function renderKPIAndCharts(){
     rest.forEach(([_,arr])=> arr.forEach((v,i)=> other[i]+=v ));
     top.push(['أخرى', other]);
   }
-
-  const datasets = top.map(([site, arr])=> ({ label: site, data: arr, stack: 'stack1' }));
+  const datasets = top.map(([site, arr])=> ({ label: site, data: arr, stack: 's1' }));
   const smCtx = document.getElementById('chSiteMonth');
-  if(chSiteMonth) chSiteMonth.destroy();
-  chSiteMonth = new Chart(smCtx, {
-    type: 'bar',
-    data: { labels: monthLabels, datasets },
-    options: {
-      responsive:true, maintainAspectRatio:true,
-      scales: {
-        x: { stacked:true },
-        y: { stacked:true, beginAtZero:true, precision:0 }
-      },
-      plugins: { legend: { position:'bottom', labels:{ boxWidth:12 } } }
-    }
+  if(window._chSiteMonth) window._chSiteMonth.destroy();
+  window._chSiteMonth = new Chart(smCtx, {
+    type:'bar',
+    data:{ labels: monthLabels, datasets },
+    options:{ responsive:true, maintainAspectRatio:true, scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true, precision:0 } }, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12 } } } }
   });
 }
 
-/* ===== Table render ===== */
+/* ===== جدول ===== */
 function renderTable(){
   const tb = $('#tbody'); tb.innerHTML='';
   filtered.forEach(x=>{
     const st = statusOf(x.pm_date, x.next_date);
+    const editable = canTouchAsset(x) && canWrite();
     const tr = document.createElement('tr');
     tr.className='border-b border-slate-800';
     tr.innerHTML = `
-      <td class="p-2"><input type="checkbox" data-chk="${x.id}"/></td>
+      <td class="p-2"><input type="checkbox" data-chk="${x.id}" ${editable?'':'disabled'}/></td>
       <td class="p-2 font-bold">${x.control||'—'}</td>
       <td class="p-2">${x.site||'—'}</td>
       <td class="p-2">${x.department||'—'}</td>
@@ -465,8 +471,8 @@ function renderTable(){
         <div class="flex flex-wrap gap-1">
           <a class="btn btn-slate" href="sticker.html#view/${encodeURIComponent(x.control)}" target="_blank" title="Sticker">Sticker</a>
           <a class="btn btn-sky" href="qr.html?control=${encodeURIComponent(x.control)}" target="_blank" title="QR">QR</a>
-          <button class="btn btn-emerald ${myRole==='viewer'?'disabled':''}" data-pm="${x.id}" data-ctrl="${x.control||''}">تم عمل الصيانة</button>
-          <button class="btn btn-red ${myRole==='viewer'?'disabled':''}" data-del="${x.id}">حذف</button>
+          <button class="btn btn-emerald ${editable?'':'disabled'}" data-pm="${x.id}" data-ctrl="${x.control||''}">تم عمل الصيانة</button>
+          <button class="btn btn-red ${editable?'':'disabled'}" data-del="${x.id}">حذف</button>
         </div>
       </td>
     `;
@@ -476,26 +482,31 @@ function renderTable(){
 }
 
 /* ===== إضافة جهاز ===== */
-$('#btnAddToggle').onclick = ()=> $('#addPanel').classList.toggle('hidden');
+$('#btnAddToggle').onclick = ()=> { if(!canWrite()) return; $('#addPanel').classList.toggle('hidden'); };
 $('#btnCancelAdd').onclick = ()=> $('#addPanel').classList.add('hidden');
 
 function docIdFromControl(ctrl){ return safeId(ctrl); }
 
 $('#btnSaveAsset').onclick = async ()=>{
-  if(myRole==='viewer'){ notice('صلاحياتك قراءة فقط','error'); return; }
-  const control = $('#a_control').value.trim();
-  const site    = $('#a_site').value.trim();
-  const dept    = $('#a_dept').value.trim();
-  const loc     = $('#a_loc').value.trim();
-  const tech    = $('#a_tech').value.trim();
-  const pm      = $('#a_pm').value;
-
-  if(!control || !pm){ notice('أدخل Control و PM Date','error'); return; }
-  const docId = docIdFromControl(control);
+  if(!canWrite()){ notice('صلاحياتك لا تسمح بالإضافة','error'); return; }
+  const x = {
+    control: $('#a_control').value.trim(),
+    site   : $('#a_site').value.trim(),
+    department: $('#a_dept').value.trim(),
+    location: $('#a_loc').value.trim(),
+    tech   : $('#a_tech').value.trim(),
+    pm_date: $('#a_pm').value
+  };
+  if(!x.control || !x.pm_date){ notice('أدخل Control و PM Date','error'); return; }
+  // قيود الدور
+  if(myRole==='engineer' && mySites.length && !mySites.includes(x.site)){ notice('موقع خارج صلاحياتك','error'); return; }
+  if(myRole==='tech'){
+    if(mySites.length && !mySites.includes(x.site)){ notice('موقع خارج صلاحياتك','error'); return; }
+    if(myDepts.length && !myDepts.includes(x.department)){ notice('قسم خارج صلاحياتك','error'); return; }
+  }
   try{
-    await setDoc(doc(db,'assets', docId), {
-      control, site, department:dept, location:loc, tech,
-      pm_date: pm, next_date: calcNext(pm), updatedAt: serverTimestamp()
+    await setDoc(doc(db,'assets', docIdFromControl(x.control)), {
+      ...x, next_date: calcNext(x.pm_date), updatedAt: serverTimestamp()
     }, { merge:true });
     notice('تم حفظ الجهاز ✅','ok');
     await loadData();
@@ -505,7 +516,7 @@ $('#btnSaveAsset').onclick = async ()=>{
   }catch(e){ notice('فشل الحفظ: '+e.message,'error'); }
 };
 
-/* ===== تعديل PM (تم عمل الصيانة) ===== */
+/* ===== تعديل PM ===== */
 const editModal = $('#editModal');
 const openEdit = ()=>{ editModal.classList.remove('hidden'); editModal.classList.add('flex'); };
 const closeEdit = ()=>{ editModal.classList.add('hidden'); editModal.classList.remove('flex'); };
@@ -514,28 +525,24 @@ $('#btnEditClose').onclick = closeEdit;
 document.addEventListener('click', (e)=>{
   const b = e.target.closest('button[data-pm]');
   if(!b) return;
-  if(myRole==='viewer'){ notice('صلاحياتك قراءة فقط','error'); return; }
   const id = b.getAttribute('data-pm');
   const ctrl = b.getAttribute('data-ctrl')||'';
+  const row = filtered.find(r=> r.id===id);
+  if(!canTouchAsset(row) || !canWrite()){ notice('صلاحياتك لا تسمح بالتعديل','error'); return; }
   $('#e_id').value = id;
   $('#e_control').textContent = ctrl;
   $('#e_pm').value = todayISO();
   openEdit();
 });
-
 $('#btnEditSave').onclick = async ()=>{
   const id = $('#e_id').value;
   const pm = $('#e_pm').value;
   if(!pm){ notice('اختر تاريخ الصيانة','error'); return; }
+  const row = filtered.find(r=> r.id===id);
+  if(!canTouchAsset(row) || !canWrite()){ notice('صلاحياتك لا تسمح','error'); return; }
   try{
-    await updateDoc(doc(db,'assets', id), {
-      pm_date: pm,
-      next_date: calcNext(pm),
-      updatedAt: serverTimestamp()
-    });
-    notice('تم التحديث ✅','ok');
-    closeEdit();
-    await loadData();
+    await updateDoc(doc(db,'assets', id), { pm_date: pm, next_date: calcNext(pm), updatedAt: serverTimestamp() });
+    notice('تم التحديث ✅','ok'); closeEdit(); await loadData();
   }catch(e){ notice('فشل التحديث: '+e.message,'error'); }
 };
 
@@ -543,28 +550,30 @@ $('#btnEditSave').onclick = async ()=>{
 document.addEventListener('click', async (e)=>{
   const b = e.target.closest('button[data-del]');
   if(!b) return;
-  if(myRole==='viewer'){ notice('صلاحياتك قراءة فقط','error'); return; }
   const id = b.getAttribute('data-del');
+  const row = filtered.find(r=> r.id===id);
+  if(!canTouchAsset(row) || !canWrite()){ notice('صلاحياتك لا تسمح بالحذف','error'); return; }
   if(!confirm('حذف هذا الجهاز نهائيًا؟')) return;
-  try{
-    await deleteDoc(doc(db,'assets', id));
-    notice('تم الحذف ✅','ok');
-    await loadData();
-  }catch(err){ notice('فشل الحذف: '+err.message,'error'); }
+  try{ await deleteDoc(doc(db,'assets', id)); notice('تم الحذف ✅','ok'); await loadData(); }
+  catch(err){ notice('فشل الحذف: '+err.message,'error'); }
 });
 
 /* ===== حذف جماعي ===== */
 function refreshBulkButton(){
-  const checked = document.querySelectorAll('input[type="checkbox"][data-chk]:checked').length;
+  const checked = Array.from(document.querySelectorAll('input[type="checkbox"][data-chk]:checked')).length;
   const btn = $('#btnBulkDelete');
-  if(checked>0 && myRole!=='viewer'){ btn.classList.remove('disabled'); }
-  else { btn.classList.add('disabled'); }
+  if(checked>0 && canWrite()) btn.classList.remove('disabled'); else btn.classList.add('disabled');
 }
 document.addEventListener('change', (e)=>{
   if(e.target && e.target.matches('input[type="checkbox"][data-chk], #chkAll')){
     if(e.target.id==='chkAll'){
       const state = e.target.checked;
-      document.querySelectorAll('input[type="checkbox"][data-chk]').forEach(c=> c.checked=state);
+      document.querySelectorAll('input[type="checkbox"][data-chk]').forEach(c=>{
+        // ما تفعّلش اختيار عناصر خارج الصلاحية
+        const id = c.getAttribute('data-chk');
+        const row = filtered.find(r=> r.id===id);
+        if(canTouchAsset(row) && canWrite()) c.checked=state;
+      });
     }
     refreshBulkButton();
   }
@@ -575,23 +584,17 @@ $('#btnBulkDelete').onclick = async ()=>{
   try{
     const ids = Array.from(document.querySelectorAll('input[type="checkbox"][data-chk]:checked')).map(c=> c.getAttribute('data-chk'));
     for(const id of ids){ await deleteDoc(doc(db,'assets', id)); }
-    notice('تم الحذف الجماعي ✅','ok');
-    await loadData();
+    notice('تم الحذف الجماعي ✅','ok'); await loadData();
   }catch(e){ notice('فشل الحذف الجماعي: '+e.message,'error'); }
 };
 
-/* ===== تصدير Excel (البيانات المعروضة) ===== */
+/* ===== تصدير Excel (البيانات المعروضة + ضمن نطاق صلاحياتي) ===== */
 $('#btnExport').onclick = async ()=>{
   try{
-    // تأكد من وجود المكتبة — لو مش موجودة لأي سبب حمّلها ديناميكيًا
-    let XLSX = window.XLSX;
-    if(!XLSX){
-      await new Promise((resolve,reject)=>{
-        const s=document.createElement('script');
-        s.src='https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js';
-        s.onload=resolve; s.onerror=reject; document.head.appendChild(s);
-      });
-      XLSX = window.XLSX;
+    let XLSXlib = window.XLSX;
+    if(!XLSXlib){
+      await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+      XLSXlib = window.XLSX;
     }
     const rows = filtered.map(x=>({
       Control: x.control||'',
@@ -603,12 +606,12 @@ $('#btnExport').onclick = async ()=>{
       Next_Date: x.next_date||'',
       Status: statusOf(x.pm_date,x.next_date)
     }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Assets');
+    const ws = XLSXlib.utils.json_to_sheet(rows);
+    const wb = XLSXlib.utils.book_new();
+    XLSXlib.utils.book_append_sheet(wb, ws, 'Assets');
     const d = new Date();
     const fname = `assets_export_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.xlsx`;
-    XLSX.writeFile(wb, fname);
+    XLSXlib.writeFile(wb, fname);
     notice('تم تصدير الملف ✅','ok');
   }catch(e){
     notice('فشل التصدير: '+(e.message||'XLSX load error'),'error');
@@ -616,26 +619,24 @@ $('#btnExport').onclick = async ()=>{
   }
 };
 
-/* ربط أقسام إضافة جهاز بالموقع المختار (للسهولة) */
+/* ربط أقسام إضافة جهاز بالموقع المختار (تسهيل الإدخال) */
 $('#a_site').addEventListener('change', ()=>{
   const selSite = $('#a_site').value;
   let list;
   if(!selSite){
-    const d=new Set(); all.forEach(x=> x.department && d.add(x.department));
+    const d=new Set(); visible.forEach(x=> x.department && d.add(x.department));
     list=[...d].sort();
   }else{
-    const d=new Set(); all.forEach(x=>{ if(x.site===selSite && x.department) d.add(x.department); });
+    const d=new Set(); visible.forEach(x=>{ if(x.site===selSite && x.department) d.add(x.department); });
     list=[...d].sort();
   }
   const el = $('#a_dept'); el.innerHTML='';
   const any = document.createElement('option'); any.value=''; any.textContent='اختر القسم…';
   el.appendChild(any);
-  list.forEach(dep=>{
-    const o=document.createElement('option'); o.value=dep; o.textContent=dep; el.appendChild(o);
-  });
+  list.forEach(dep=>{ const o=document.createElement('option'); o.value=dep; o.textContent=dep; el.appendChild(o); });
 });
 
-/* ===== زر تسجيل الخروج ===== */
+/* زر خروج */
 $('#btnLogout').onclick = async ()=>{ try{ await signOut(auth); location.href='login.html'; }catch{} };
 
 /* أخطاء عامة */
